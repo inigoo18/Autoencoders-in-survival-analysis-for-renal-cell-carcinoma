@@ -19,16 +19,17 @@ class Trainer:
     def train(self, idx):
         model = self.models[idx]
         loss = None
-        x_data = torch.tensor(model.X.values)
-        y_data = torch.tensor(model.y.values)
 
         for t in range(model.epochs):
-            for i in range(len(x_data)):
-                x = x_data[i].reshape(-1, len(x_data[i]))
-                y = y_data[i]
-                y_pred = model.model.forward(x)
+            x_batch = model.X[t]
+            y_batch = model.y[t]
+            for i in range(len(model.X)):
+                x = torch.tensor(x_batch[i])
+                y = y_batch[i]
 
-                loss = model.loss_function(y_pred, y)
+                x_pred = model.model.forward(x)
+
+                loss = model.loss_function(x, x_pred)
 
                 # zero all of the gradients for the variables it will update
                 model.optim.zero_grad()

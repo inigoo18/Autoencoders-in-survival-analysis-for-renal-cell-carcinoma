@@ -1,6 +1,7 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
+import random
 
 class TabularDataLoader:
     """
@@ -8,12 +9,15 @@ class TabularDataLoader:
     """
 
     def __init__(self, file_path, pred_var, trte_ratio):
+        # Load file and convert into float32 since model parameters initialized w/ Pytorch are in float32
         dataframe = pd.read_csv(file_path, sep = ',', index_col = 0)
         self.dataframe = dataframe.astype('float32')
+
         X = self.dataframe.drop(columns=[pred_var])
         y = self.dataframe[pred_var]
         self.X_train, self.X_test, self.Y_train, self.Y_test = train_test_split(X, y, test_size = trte_ratio, random_state = 42)
         self._normalize_data()
+        self._create_batches(32)
 
     def describe_dataframe(self):
         return self.dataframe.describe()
@@ -35,3 +39,35 @@ class TabularDataLoader:
 
         self.X_test = pd.DataFrame(scaler.fit_transform(self.X_test), columns=self.X_test.columns,
                                     index=self.X_test.index)
+
+    def _create_batches(self, size):
+        '''
+        Creates batches for training out of the original data
+        '''
+        self.X_train_batch, self.Y_train_batch, self.idxs_train_batch = create_batches(self.X_train.values, self.Y_train, size)
+        self.X_test_batch, self.Y_test_batch, self.idxs_test_batch = create_batches(self.X_test.values, self.Y_test, size)
+
+def create_batches(data, labels, size):
+    data_batches_X = []
+    data_batches_Y = []
+    num_batches = len(data) // size if (len(data) % size == 0) else (len(data) // size) + 1
+    len_sequence = len(data[0])
+    idxs = list(range(len(data)))
+    idxs_chosen = []
+
+    for num_batch in range(num_batches):
+        batchX = []
+        batchY = []
+        batch_idxs = []
+        for _ in range(size):
+            if len(idxs) > 0:
+                random_elem = random.choice(idxs)
+                batchX += [data[random_elem]]
+                batchY += [labels[random_elem]]
+                idxs.remove(random_elem)
+                batch_idxs.append(random_elem)
+        data_batches_X += [batchX]
+        data_batches_Y += [batchY]
+        idxs_chosen += [batch_idxs]
+
+    return data_batches_X, data_batches_Y, idxs_chosen

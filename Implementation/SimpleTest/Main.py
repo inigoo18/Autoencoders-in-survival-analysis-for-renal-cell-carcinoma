@@ -18,7 +18,7 @@ if __name__ == "__main__":
     aeModel = AE(d.input_dim_train())
     optim = torch.optim.Adam(aeModel.parameters(), lr = 0.001)
     loss_fn = torch.nn.MSELoss(reduction='sum')
-    instanceModel = TrainingModel("TestModel", d.X_train, d.Y_train, aeModel, optim, 10, loss_fn)
+    instanceModel = TrainingModel("TestModel", d.X_train_batch, d.Y_train_batch, aeModel, optim, 10, loss_fn)
 
     trainer = Trainer([instanceModel])
     trainer.trainAll()
