@@ -1,10 +1,10 @@
+from typing import Type
+
 import torch
 import math
 
-from SimpleTest.NNModel import NNModel
 
-
-class AE(torch.nn.Module, NNModel):
+class AE(torch.nn.Module):
 
     def __init__(self, input_dim):
         super().__init__()
@@ -34,6 +34,8 @@ class AE(torch.nn.Module, NNModel):
         )
 
     def forward(self, x):
+        print("Input dim:", len(x))
         encoded = self.encoder(x)
+        print("WOOHOO")
         decoded = self.decoder(encoded)
         return decoded

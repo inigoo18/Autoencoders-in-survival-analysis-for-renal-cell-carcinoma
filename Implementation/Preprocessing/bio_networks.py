@@ -5,6 +5,16 @@ import os
 
 
 def recursive_neighbour_gather(node, ppi, R, result=[], looked_nodes=[]):
+    '''
+    Function that finds the neighbors of a node, and starts looking at the neighbors of each of those neighbors,
+    recursively.
+    :param node: entrez ID of a gene
+    :param ppi: graph that connects nodes
+    :param R: neighborhood radius
+    :param result: recursive parameter to store all looked nodes
+    :param looked_nodes: recursive parameter to know which nodes we've already looked at
+    :return: result, a list of all nodes in the neighborhood
+    '''
     if R == 1:
         return result
     else:
@@ -22,6 +32,16 @@ def recursive_neighbour_gather(node, ppi, R, result=[], looked_nodes=[]):
 
 
 def get_snap(expression_DF, genes, remove_components, RADIUS):
+    '''
+    Function that creates snap network
+    :param expression_DF: dataframe with the expression of the genes, used in order to know which are the
+    genes that we need to really consider at the end, in the graph.
+    :param genes: list of relevant genes that we obtained from disgenet
+    :param remove_components: boolean, whether to remove components of small size
+    :param RADIUS: radius through which to look at the different nodes
+    :return: graph
+    '''
+
     # We remove first line in csv with column names
     file_address = '../../Data/PPT-Ohmnet/PPT-Ohmnet_tissues-combined.edgelist'
     with open(file_address, 'r') as f:

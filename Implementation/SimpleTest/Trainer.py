@@ -3,7 +3,7 @@ import math
 
 from typing import List
 
-from SimpleTest.NNModel import NNModel
+from SimpleTest.TrainingModel import TrainingModel
 
 
 class Trainer:
@@ -12,27 +12,40 @@ class Trainer:
     """
 
 
-    def __init__(self, models: List[NNModel], data):
+    def __init__(self, models: List[TrainingModel]):
         self.models = models # list of models
-        self.data = data # DataLoader object
 
 
     def train(self, idx):
         model = self.models[idx]
+        loss = None
+        x_data = torch.tensor(model.X.values)
+        y_data = torch.tensor(model.y.values)
+
         for t in range(model.epochs):
-            y_pred = model.forward(self)
+            for i in range(len(x_data)):
+                x = x_data[i].reshape(-1, len(x_data[i]))
+                y = y_data[i]
+                y_pred = model.model.forward(x)
 
-            loss = model.loss_function(y_pred, self.data.Y)
-            if t % 100 == 99:
-                print(t, loss.item())
+                loss = model.loss_function(y_pred, y)
 
-            # zero all of the gradients for the variables it will update
-            model.optim.zero_grad()
+                # zero all of the gradients for the variables it will update
+                model.optim.zero_grad()
 
-            # backward pass: compute gradient of the loss w/ respect to model parameters
-            loss.backward()
+                # backward pass: compute gradient of the loss w/ respect to model parameters
+                loss.backward()
 
-            # update parameters
-            model.optim.step()
+                # update parameters
+                model.optim.step()
+
+            print("Epoch", t, " completed with loss: ", loss)
+
+        print("End of training report")
+        print("Final loss obtained:", loss)
+
+    def trainAll(self):
+        for idx in range(len(self.models)):
+            self.train(idx)
 
 
