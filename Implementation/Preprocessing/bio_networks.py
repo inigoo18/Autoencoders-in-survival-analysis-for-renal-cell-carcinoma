@@ -122,7 +122,7 @@ def get_snap(expression_DF, genes, remove_components, RADIUS):
 
     print('SNAP')
     print('Resulting network:', subgraph_original, 'nodes')
-    print('Network without DF filtering: ', original, 'nodes (lost ', round((1-subgraph_original / original), 4) * 100, ')')
+    print('Network without DF filtering: ', original, 'nodes (lost ', round((1-subgraph_original / original), 4) * 100, '%)')
     print('Added nodes through neighbor look up: ', addedCount, 'nodes')
     print('Biggest connected component:', largest, 'nodes')
     print('Total percentage of lost genes/nodes:', lost, f'({lost_percent * 100}%)')

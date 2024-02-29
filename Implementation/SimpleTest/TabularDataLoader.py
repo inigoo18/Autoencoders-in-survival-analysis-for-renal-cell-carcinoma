@@ -2,19 +2,20 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 import random
+import numpy as np
 
 class TabularDataLoader:
     """
     Class that holds the DataFrame where the tabular data is located.
     """
 
-    def __init__(self, file_path, pred_var, trte_ratio):
+    def __init__(self, file_path, pred_vars, trte_ratio):
         # Load file and convert into float32 since model parameters initialized w/ Pytorch are in float32
         dataframe = pd.read_csv(file_path, sep = ',', index_col = 0)
         self.dataframe = dataframe.astype('float32')
 
-        X = self.dataframe.drop(columns=[pred_var])
-        y = self.dataframe[pred_var]
+        X = self.dataframe.drop(columns=pred_vars)
+        y = self.prepare_labels()
         self.X_train, self.X_test, self.Y_train, self.Y_test = train_test_split(X, y, test_size = trte_ratio, random_state = 42)
         self._normalize_data()
         self._create_batches(32)
@@ -27,6 +28,20 @@ class TabularDataLoader:
 
     def input_dim_test(self):
         return len(self.Y_train.iloc[0])
+
+    def prepare_labels(self):
+        '''
+        Labels are supposed to be in the form of (censorship, time of event)
+        '''
+        pfs = self.dataframe['PFS']
+        cnsr = self.dataframe['CENSOR']
+        result = []
+        for p,c in zip(pfs,cnsr):
+            b = False
+            if c == 1:
+                b = True
+            result += [(b,p)]
+        return result
 
     def _normalize_data(self):
         '''

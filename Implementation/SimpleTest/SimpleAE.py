@@ -34,8 +34,9 @@ class AE(torch.nn.Module):
         )
 
     def forward(self, x):
-        print("Input dim:", len(x))
         encoded = self.encoder(x)
-        print("WOOHOO")
         decoded = self.decoder(encoded)
         return decoded
+
+    def get_latent_space(self, x):
+        return self.encoder(x)

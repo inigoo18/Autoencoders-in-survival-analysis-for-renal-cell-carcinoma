@@ -3,7 +3,10 @@ import math
 
 from typing import List
 
+from sksurv.linear_model import CoxPHSurvivalAnalysis
+
 from SimpleTest.TrainingModel import TrainingModel
+import numpy as np
 
 
 class Trainer:
@@ -17,28 +20,28 @@ class Trainer:
 
 
     def train(self, idx):
-        model = self.models[idx]
+        tr_model = self.models[idx]
         loss = None
-
-        for t in range(model.epochs):
-            x_batch = model.X[t]
-            y_batch = model.y[t]
-            for i in range(len(model.X)):
+        tr_model.model.train()
+        for t in range(tr_model.epochs):
+            x_batch = tr_model.X_train[t]
+            y_batch = tr_model.y_train[t]
+            for i in range(len(x_batch)):
                 x = torch.tensor(x_batch[i])
                 y = y_batch[i]
 
-                x_pred = model.model.forward(x)
+                x_pred = tr_model.model.forward(x)
 
-                loss = model.loss_function(x, x_pred)
+                loss = tr_model.loss_function(x, x_pred)
 
                 # zero all of the gradients for the variables it will update
-                model.optim.zero_grad()
+                tr_model.optim.zero_grad()
 
                 # backward pass: compute gradient of the loss w/ respect to model parameters
                 loss.backward()
 
                 # update parameters
-                model.optim.step()
+                tr_model.optim.step()
 
             print("Epoch", t, " completed with loss: ", loss)
 
@@ -48,5 +51,28 @@ class Trainer:
     def trainAll(self):
         for idx in range(len(self.models)):
             self.train(idx)
+
+    def evaluate(self, idx):
+        eval_model = self.models[idx]
+        eval_model.model.eval()
+
+        latent_space_train = eval_model.model.get_latent_space(torch.tensor(eval_model.unroll_Xtrain())).detach().numpy()
+        latent_space_test = eval_model.model.get_latent_space(torch.tensor(eval_model.unroll_Xtest())).detach().numpy()
+
+        alphas = 10.0 ** np.linspace(-4,4,50)
+        cph = CoxPHSurvivalAnalysis()
+        for alpha in alphas:
+            cph.set_params(alpha=alpha)
+            smth = eval_model.unroll_Ytrain()
+            cph.fit(latent_space_train, eval_model.unroll_Ytrain())
+            # y :: (1, 10) -> event occurred at time 10
+            # y :: (0, 05) -> event was censored at time 5
+            survival_function = cph.predict(latent_space_test)
+            print(survival_function)
+
+
+    def evaluateAll(self):
+        for idx in range(len(self.models)):
+            self.evaluate(idx)
 
 

@@ -25,12 +25,13 @@ def create_tabular_dataset(ppi):
       for gene in allGenes:
          res += [data[gene]['node_attr']]
       # finally, the PFS value of the patient
-      res += [graph.graph['graph_label']]
+      res += [graph.graph['graph_PFS']]
+      res += [graph.graph['graph_CNSR']]
       # and we add it to the list of patients
       finalRes += [res]
 
    # Set columns, create dataframe, set index and return value
-   columns = ['id'] + allGenes + ['PFS']
+   columns = ['id'] + allGenes + ['PFS'] + ['CENSOR']
    df = pd.DataFrame(finalRes, columns=columns)
    df.set_index('id', inplace=True)
    return df
@@ -49,12 +50,14 @@ def create_samples_graphs(genData, cliData, G):
    graphs_list = []
    for sample in samples:
 
-      label = cliData.loc[sample]['PFS_P']
+      label_PFS = cliData.loc[sample]['PFS_P']
+      label_CNSR = cliData.loc[sample]['PFS_P_CNSR']
       sample_graph = G.copy()
       sample_data = genData.loc[sample]
 
       # Add graph features
-      sample_graph.graph['graph_label'] = label
+      sample_graph.graph['graph_PFS'] = label_PFS
+      sample_graph.graph['graph_CNSR'] = label_CNSR
       sample_graph.graph['sample_id'] = sample
 
       # Add node and edge features
@@ -88,7 +91,7 @@ if __name__ == "__main__":
    expression_data = pd.read_csv(expression_target, sep = ',', index_col=0)
    clinical_data = pd.read_csv(clinical_target, sep=',', index_col=0)
 
-   RADIUSES = [1,2,3,4,5,7,10,15,20]
+   RADIUSES = [1,2,3,4,5,7]
    for R in RADIUSES:
       print()
       print('With radius', R, ':')
