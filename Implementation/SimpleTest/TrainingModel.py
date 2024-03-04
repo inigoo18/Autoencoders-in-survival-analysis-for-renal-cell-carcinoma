@@ -7,7 +7,7 @@ import numpy as np
 
 
 class TrainingModel():
-    def __init__(self, name, X_train, y_train, X_test, y_test, model : torch.nn.Module, optim: Type[torch.optim.Optimizer], epochs: int, loss_function):
+    def __init__(self, name, X_train, y_train, X_test, y_test, model : torch.nn.Module, optim: Type[torch.optim.Optimizer], epochs: int, loss_function, columns, L):
         self.name = name
         self.X_train = X_train
         self.y_train = y_train
@@ -17,6 +17,8 @@ class TrainingModel():
         self.optim = optim
         self.epochs = epochs
         self.loss_function = loss_function
+        self.columns = columns
+        self.L = L
 
     def unroll_Xtrain(self):
         return [i for j in self.X_train for i in j]

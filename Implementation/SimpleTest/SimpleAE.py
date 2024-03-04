@@ -6,7 +6,7 @@ import math
 
 class AE(torch.nn.Module):
 
-    def __init__(self, input_dim):
+    def __init__(self, input_dim, L):
         super().__init__()
 
         self.encoder = torch.nn.Sequential(
@@ -18,11 +18,11 @@ class AE(torch.nn.Module):
             torch.nn.ReLU(),
             torch.nn.Linear(64,32),
             torch.nn.ReLU(),
-            torch.nn.Linear(32,16)
+            torch.nn.Linear(32,L)
         )
 
         self.decoder = torch.nn.Sequential(
-            torch.nn.Linear(16,32),
+            torch.nn.Linear(L,32),
             torch.nn.ReLU(),
             torch.nn.Linear(32,64),
             torch.nn.ReLU(),

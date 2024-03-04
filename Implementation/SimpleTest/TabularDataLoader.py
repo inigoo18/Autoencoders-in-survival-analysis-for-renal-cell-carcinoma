@@ -23,6 +23,9 @@ class TabularDataLoader:
     def describe_dataframe(self):
         return self.dataframe.describe()
 
+    def fetch_columns(self):
+        return self.dataframe.columns
+
     def input_dim_train(self):
         return len(self.X_train.iloc[0])
 
