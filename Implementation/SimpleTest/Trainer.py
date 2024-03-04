@@ -29,11 +29,13 @@ class Trainer:
 
     def train(self, idx):
         tr_model = self.models[idx]
-        tr_model.model.train()
-        for t in range(tr_model.epochs):
-            num_batches = len(tr_model.X_train)
-            epoch_loss = 0.0
-            for b in range(num_batches):
+        best_validation_loss = float('inf')
+        best_model_state = None
+        for t in range(tr_model.epochs + 1):
+            tr_model.model.train()
+            num_train_batches = len(tr_model.X_train)
+            train_loss = 0.0
+            for b in range(num_train_batches):
                 x_batch = torch.tensor(tr_model.X_train[b])
                 y_batch = torch.tensor(tr_model.y_train[b])
 
@@ -44,16 +46,37 @@ class Trainer:
                 loss = tr_model.loss_function(x_pred_batch, x_batch)
 
                 # Accumulate loss for the epoch
-                epoch_loss += loss.item()
+                train_loss += loss.item()
 
                 # Zero gradients, backward pass, and update parameters
                 tr_model.optim.zero_grad()
                 loss.backward()
                 tr_model.optim.step()
 
-            avg_epoch_loss = epoch_loss / num_batches
-            print("Epoch", t, " completed with average loss: ", avg_epoch_loss)
 
+            valid_loss = 0.0
+            tr_model.model.eval()
+            num_val_batches = len(tr_model.X_val)
+            for b in range(num_val_batches):
+                x_batch = torch.tensor(tr_model.X_train[b])
+                y_batch = torch.tensor(tr_model.y_train[b])
+                x_pred_batch = tr_model.model.forward(x_batch)
+                loss = tr_model.loss_function(x_pred_batch, x_batch)
+                valid_loss += loss.item()
+
+            avg_train_loss = train_loss / num_train_batches
+            avg_valid_loss = valid_loss / num_val_batches
+
+            # Print epoch-wise loss
+            print("Epoch", t, "completed with average training loss:", avg_train_loss)
+            print("Epoch", t, "completed with average validation loss:", avg_valid_loss)
+
+            # Check if validation loss improved
+            if avg_valid_loss < best_validation_loss:
+                best_validation_loss = avg_valid_loss
+                best_model_state = tr_model.model.state_dict()
+
+        torch.save(best_model_state, 'best_model_loss_'+str(round(best_validation_loss, 2)))
         print("End of training report")
 
     def trainAll(self):
@@ -69,26 +92,31 @@ class Trainer:
         latent_space_train = eval_model.model.get_latent_space(torch.tensor(eval_model.unroll_Xtrain())).detach().numpy()
         latent_space_test = eval_model.model.get_latent_space(torch.tensor(eval_model.unroll_Xtest())).detach().numpy()
 
-        coxnet_model = CoxnetSurvivalAnalysis(l1_ratio = 0.9, alpha_min_ratio = 0.001)
-        warnings.simplefilter("ignore", UserWarning)
-        warnings.simplefilter("ignore", FitFailedWarning)
-        coxnet_model.fit(latent_space_train, eval_model.unroll_Ytrain())
+        start = 0.00001
+        stop = 0.1
+        step = 0.00002
+        estimated_alphas = np.arange(start, stop + step, step)#coxnet_pipe.named_steps['coxnetsurvivalanalysis'].alphas_
 
-        estimated_alphas = coxnet_model.alphas_
+
         cv = KFold(n_splits=5, shuffle = True, random_state = 46)
         gcv = GridSearchCV(
-            CoxnetSurvivalAnalysis(l1_ratio = 0.9),
-            param_grid = {"alphas": [[v] for v in estimated_alphas]},
+            make_pipeline(StandardScaler(), CoxnetSurvivalAnalysis(l1_ratio=0.95)),
+            param_grid = {"coxnetsurvivalanalysis__alphas": [[v] for v in estimated_alphas]},
             cv = cv,
-            error_score = 0.5,
-            n_jobs = 1,
+            error_score = 0,
+            n_jobs = 2,
         ).fit(latent_space_train, eval_model.unroll_Ytrain())
 
         cv_results = pd.DataFrame(gcv.cv_results_)
 
-        alphas = cv_results.param_alphas.map(lambda x: x[0])
+        alphas = cv_results.param_coxnetsurvivalanalysis__alphas.map(lambda x: x[0])
         mean = cv_results.mean_test_score
         std = cv_results.std_test_score
+
+        print("Alphas: ")
+        print(estimated_alphas)
+        print("Mean:")
+        print(mean)
 
         fig, ax = plt.subplots(figsize=(9, 6))
         ax.plot(alphas, mean)
@@ -96,13 +124,13 @@ class Trainer:
         ax.set_xscale("log")
         ax.set_ylabel("concordance index")
         ax.set_xlabel("alpha")
-        ax.axvline(gcv.best_params_["alphas"][0], c="C1")
+        ax.axvline(gcv.best_params_["coxnetsurvivalanalysis__alphas"][0], c="C1")
         ax.axhline(0.5, color="grey", linestyle="--")
         ax.grid(True)
         plt.show()
 
 
-        best_model = gcv.best_estimator_
+        best_model = gcv.best_estimator_.named_steps['coxnetsurvivalanalysis']
         best_coefs = pd.DataFrame(best_model.coef_, index=latent_cols, columns=["coefficient"])
 
         non_zero = np.sum(best_coefs.iloc[:, 0] != 0)
