@@ -187,8 +187,8 @@ class Trainer:
 
 
 def plot_losses(epochs, data_tr, data_val, dir):
-    combined_tr = [x + y for x, y in zip(data_tr['MSE'], data_tr['SPARSE'])]
-    combined_val = [x + y for x, y in zip(data_val['MSE'], data_val['SPARSE'])]
+    combined_tr = [sum(values) for values in zip(*[data_tr[key] for key in data_tr.keys()])]
+    combined_val = [sum(values) for values in zip(*[data_val[key] for key in data_val.keys()])]
 
     bestVal = min(combined_val)
 
@@ -197,12 +197,17 @@ def plot_losses(epochs, data_tr, data_val, dir):
     plt.plot(epochs, combined_tr, label="Train", marker='o', linestyle='-', color='#1f77b4', linewidth=2,
              alpha=0.8)  # Customize train curve with softer blue color
     plt.plot(epochs, combined_val, label="Val", marker='s', linestyle='-', color='#ff7f0e', linewidth=2, alpha=0.8)
+    plt.text(epochs[-1] + 0.15, combined_tr[-1], 'ALL', verticalalignment='center', fontsize=7)
+    plt.text(epochs[-1] + 0.15, combined_val[-1], 'ALL', verticalalignment='center', fontsize=7)
 
-    plt.plot(epochs, data_tr['MSE'], linestyle='--', color='#1f77b4', linewidth=2, alpha=0.5)
-    plt.plot(epochs, data_val['MSE'], linestyle='--', color='#ff7f0e', linewidth=2, alpha=0.5)
+    for idx, key in enumerate(list(data_tr.keys())):
+        plt.plot(epochs, data_tr[key], linestyle='--', color='#1f77b4', linewidth=2, alpha=0.5)
+        plt.text(epochs[-1] + 0.15, data_tr[key][-1], key, verticalalignment='center', fontsize=7, color='#1f77b4')
 
-    plt.fill_between(epochs, data_tr['MSE'], combined_tr, color='#1f77b4', alpha=0.05, hatch='o')
-    plt.fill_between(epochs, data_val['MSE'], combined_val, color='#ff7f0e', alpha=0.05, hatch='.')
+    for idx, key in enumerate(list(data_val.keys())):
+        plt.plot(epochs, data_val[key], linestyle='--', color='#ff7f0e', linewidth=2, alpha=0.5)
+        plt.text(epochs[-1] + 0.15, data_val[key][-1], key, verticalalignment='center', fontsize=7, color='#ff7f0e')
+
     plt.axhline(bestVal, linestyle='-', color='#FF6961', linewidth=2, alpha=1)
 
     plt.title("Training and Validation Loss Over Time", fontsize=16)

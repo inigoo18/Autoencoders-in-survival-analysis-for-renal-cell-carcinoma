@@ -12,11 +12,16 @@ class LossHandler():
     def __init__(self, loss_type, args):
         self.loss_type = loss_type
         self.args = args
-        self.loss_dict_tr = {'MSE': [], 'SPARSE': []}  # here we keep count of the different losses we have
-        self.loss_dict_val = {'MSE': [], 'SPARSE': []}
+        self.loss_dict_tr = {}  # here we keep count of the different losses we have
+        self.loss_dict_val = {}
+        self.loss_dict_tr['MSE'] = []
+        self.loss_dict_val['MSE'] = []
         if loss_type == LossType.SPARSE:
+            self.loss_dict_tr['SPARSE'] = []
+            self.loss_dict_val['SPARSE'] = []
             if not 'reg_param' in args:
-                print("ERROR :: Reg_param is a necessary argument for sparse autoencoders")
+                print("ERROR :: Reg_param is a necessary argument for sparse autoencoders, fixing to 0.1")
+                self.args['reg_param'] = 0.1
 
     def clear(self):
         self.loss_dict = {}
@@ -45,15 +50,14 @@ class LossHandler():
         return total_loss
 
     def process_batch(self, tr_batch_size, val_batch_size):
-        print("Batch size", "training: ", tr_batch_size, "val: ", val_batch_size)
+        keys = list(self.loss_dict_tr.keys())
 
-        tr_dict = {'MSE': [], 'SPARSE': []} # this should be made dynamically
-        val_dict = {'MSE': [], 'SPARSE': []}
+        tr_dict = {}
+        val_dict = {}
 
-        tr_dict['MSE'] = np.mean(np.array(self.loss_dict_tr['MSE']).reshape(-1, tr_batch_size), axis = 1).tolist()
-        tr_dict['SPARSE'] = np.mean(np.array(self.loss_dict_tr['SPARSE']).reshape(-1, tr_batch_size), axis=1).tolist()
-        val_dict['MSE'] = np.mean(np.array(self.loss_dict_val['MSE']).reshape(-1, val_batch_size), axis=1).tolist()
-        val_dict['SPARSE'] = np.mean(np.array(self.loss_dict_val['SPARSE']).reshape(-1, val_batch_size), axis=1).tolist()
+        for key in keys:
+            tr_dict[key] = np.mean(np.array(self.loss_dict_tr[key]).reshape(-1, tr_batch_size), axis = 1).tolist()
+            val_dict[key] = np.mean(np.array(self.loss_dict_val[key]).reshape(-1, val_batch_size), axis=1).tolist()
 
         return tr_dict, val_dict
 
