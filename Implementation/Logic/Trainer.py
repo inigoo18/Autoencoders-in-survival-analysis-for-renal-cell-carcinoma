@@ -6,7 +6,7 @@ from typing import List
 from sklearn.model_selection import KFold, GridSearchCV
 from sksurv.linear_model import CoxnetSurvivalAnalysis
 
-from SimpleTest.TrainingModel import TrainingModel
+from Logic.TrainingModel import TrainingModel
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -46,7 +46,7 @@ class Trainer:
                 x_pred_batch = tr_model.model.forward(x_batch)
 
                 # Compute loss for the entire batch
-                loss = tr_model.loss_function(x_pred_batch, x_batch)
+                loss = tr_model.compute_model_loss(x_pred_batch, x_batch)
 
                 # Accumulate loss for the epoch
                 train_loss += loss.item()
@@ -64,7 +64,7 @@ class Trainer:
                 x_batch = torch.tensor(tr_model.X_train[b])
                 y_batch = torch.tensor(tr_model.y_train[b])
                 x_pred_batch = tr_model.model.forward(x_batch)
-                loss = tr_model.loss_function(x_pred_batch, x_batch)
+                loss = tr_model.compute_model_loss(x_pred_batch, x_batch)
                 valid_loss += loss.item()
 
             avg_train_loss = train_loss / num_train_batches
@@ -73,8 +73,8 @@ class Trainer:
             val_losses += [avg_valid_loss]
 
             # Print epoch-wise loss
-            print("Epoch", t, "completed with average training loss:", avg_train_loss)
-            print("Epoch", t, "completed with average validation loss:", avg_valid_loss)
+            print("Epoch", t, "completed with average training loss:", round(avg_train_loss,2))
+            print("Epoch", t, "completed with average validation loss:", round(avg_valid_loss,2))
 
             # Check if validation loss improved
             if avg_valid_loss < best_validation_loss:
@@ -105,7 +105,7 @@ class Trainer:
         print(latent_space_train)
 
         start = 0.00001
-        stop = 0.01
+        stop = 0.1
         step = 0.00002
         estimated_alphas = np.arange(start, stop + step, step)
 
@@ -116,7 +116,7 @@ class Trainer:
             param_grid = {"coxnetsurvivalanalysis__alphas": [[v] for v in estimated_alphas]},
             cv = cv,
             error_score = 0,
-            n_jobs = 2,
+            n_jobs = 4,
         ).fit(latent_space_train, eval_model.unroll_Ytrain())
 
         cv_results = pd.DataFrame(gcv.cv_results_)
@@ -166,13 +166,6 @@ class Trainer:
 
 
         # TODO: before proceeding, we need to give a name to each latent feature.
-        # make sure that all works well and see if we can relate the latent features to the actual genes in some way
-        # make sure not to use the StandardScaler in the make_pipeline thing.
-        # we use estimated_alphas in order to gauge more or less which are the alphas that we're going to actually want
-        # (how does that work? find out)
-        # the plot with coefficients for each feature is going to be too much for 150 features. Try to split it,
-        # or maybe only select the most relevant ones. (I think splitting is a good choice)
-
         # link (see which features are most important in cox ph model):
         # https://scikit-survival.readthedocs.io/en/stable/user_guide/coxnet.html
 
