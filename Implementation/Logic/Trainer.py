@@ -31,6 +31,9 @@ class Trainer:
         tr_model = self.models[idx]
         best_validation_loss = float('inf')
         best_model_state = None
+        best_epoch = -1
+        tr_losses = []
+        val_losses = []
         for t in range(tr_model.epochs + 1):
             tr_model.model.train()
             num_train_batches = len(tr_model.X_train)
@@ -66,6 +69,8 @@ class Trainer:
 
             avg_train_loss = train_loss / num_train_batches
             avg_valid_loss = valid_loss / num_val_batches
+            tr_losses += [avg_train_loss]
+            val_losses += [avg_valid_loss]
 
             # Print epoch-wise loss
             print("Epoch", t, "completed with average training loss:", avg_train_loss)
@@ -75,9 +80,14 @@ class Trainer:
             if avg_valid_loss < best_validation_loss:
                 best_validation_loss = avg_valid_loss
                 best_model_state = tr_model.model.state_dict()
+                best_epoch = t
 
         torch.save(best_model_state, 'best_model_loss_'+str(round(best_validation_loss, 2)))
-        print("End of training report")
+        tr_model.model.load_state_dict(best_model_state)
+
+        print("Loading model with best loss", best_validation_loss, "found in Epoch", best_epoch)
+
+        plot_losses(np.arange(tr_model.epochs+1), tr_losses, val_losses, tr_model.name+"/train_val_loss.png")
 
     def trainAll(self):
         for idx in range(len(self.models)):
@@ -92,10 +102,12 @@ class Trainer:
         latent_space_train = eval_model.model.get_latent_space(torch.tensor(eval_model.unroll_Xtrain())).detach().numpy()
         latent_space_test = eval_model.model.get_latent_space(torch.tensor(eval_model.unroll_Xtest())).detach().numpy()
 
+        print(latent_space_train)
+
         start = 0.00001
-        stop = 0.1
+        stop = 0.01
         step = 0.00002
-        estimated_alphas = np.arange(start, stop + step, step)#coxnet_pipe.named_steps['coxnetsurvivalanalysis'].alphas_
+        estimated_alphas = np.arange(start, stop + step, step)
 
 
         cv = KFold(n_splits=5, shuffle = True, random_state = 46)
@@ -175,21 +187,26 @@ class Trainer:
 
 
 
-def plot_coefficients(coefs, n_highlight):
-    _, ax = plt.subplots(figsize=(9, 6))
-    n_features = coefs.shape[0]
-    alphas = coefs.columns
-    for row in coefs.itertuples():
-        ax.semilogx(alphas, row[1:], ".-", label=row.Index)
+def plot_losses(epochs, train, val, dir):
+    valBest = min(val)
 
-    alpha_min = alphas.min()
-    top_coefs = coefs.loc[:, alpha_min].map(abs).sort_values().tail(n_highlight)
-    for name in top_coefs.index:
-        coef = coefs.loc[name, alpha_min]
-        plt.text(alpha_min, coef, name + "   ", horizontalalignment="right", verticalalignment="center")
+    plt.figure(figsize=(10, 6))
 
-    ax.yaxis.set_label_position("right")
-    ax.yaxis.tick_right()
-    ax.grid(True)
-    ax.set_xlabel("alpha")
-    ax.set_ylabel("coefficient")
+    plt.plot(epochs, train, label="Train", marker='o', linestyle='-', color='#1f77b4',
+             linewidth=2)
+    plt.plot(epochs, val, label="Val", marker='s', linestyle='--', color='#ff7f0e',
+             linewidth=2)
+    plt.axhline(valBest, linestyle='--', color='#FF6961', linewidth=2)
+
+    plt.title("Training and Validation Loss Over Time", fontsize=16)
+    plt.xlabel("Epoch", fontsize=14)
+    plt.ylabel("Loss", fontsize=14)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+    plt.legend(fontsize=12)
+    plt.grid(True)
+    plt.tight_layout()
+
+    plt.savefig(dir)
+
+    plt.show()

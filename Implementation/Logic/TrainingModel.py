@@ -4,6 +4,7 @@ from typing import Type
 import torch
 import torch.optim
 import numpy as np
+import os
 
 
 class TrainingModel():
@@ -21,6 +22,8 @@ class TrainingModel():
         self.loss_function = loss_function
         self.columns = columns
         self.L = L
+        if not os.path.exists(name):
+            os.makedirs(name)
 
     def unroll_Xtrain(self):
         return [i for j in self.X_train for i in j]

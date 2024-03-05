@@ -14,30 +14,42 @@ class AE(torch.nn.Module):
 
         self.encoder = torch.nn.Sequential(
             torch.nn.Linear(input_dim, 2500),
-            torch.nn.ReLU(),
+            torch.nn.Sigmoid(),
+            torch.nn.Dropout(0.1),
             torch.nn.Linear(2500,2000),
-            torch.nn.ReLU(),
+            torch.nn.Sigmoid(),
+            torch.nn.Dropout(0.1),
             torch.nn.Linear(2000, 1500),
-            torch.nn.ReLU(),
+            torch.nn.Sigmoid(),
+            torch.nn.Dropout(0.1),
             torch.nn.Linear(1500,1000),
-            torch.nn.ReLU(),
+            torch.nn.Sigmoid(),
+            torch.nn.Dropout(0.1),
             torch.nn.Linear(1000,500),
-            torch.nn.ReLU(),
-            torch.nn.Linear(500,L)
+            torch.nn.Sigmoid(),
+            torch.nn.Dropout(0.1),
+            torch.nn.Linear(500,L),
+            torch.nn.Sigmoid()
         )
 
         self.decoder = torch.nn.Sequential(
             torch.nn.Linear(L,500),
-            torch.nn.ReLU(),
+            torch.nn.Sigmoid(),
+            torch.nn.Dropout(0.1),
             torch.nn.Linear(500,1000),
-            torch.nn.ReLU(),
+            torch.nn.Sigmoid(),
+            torch.nn.Dropout(0.1),
             torch.nn.Linear(1000, 1500),
-            torch.nn.ReLU(),
+            torch.nn.Sigmoid(),
+            torch.nn.Dropout(0.1),
             torch.nn.Linear(1500,2000),
-            torch.nn.ReLU(),
+            torch.nn.Sigmoid(),
+            torch.nn.Dropout(0.1),
             torch.nn.Linear(2000,2500),
-            torch.nn.ReLU(),
-            torch.nn.Linear(2500, input_dim)
+            torch.nn.Sigmoid(),
+            torch.nn.Dropout(0.1),
+            torch.nn.Linear(2500, input_dim),
+            torch.nn.Sigmoid()
         )
 
     def forward(self, x):
