@@ -27,7 +27,7 @@ if __name__ == "__main__":
     aeModel = SparseAE(d.input_dim_train(), L)
     optim = torch.optim.Adam(aeModel.parameters(), lr = 0.01)
     instanceModel = TrainingModel("TestModel", d.X_train_batch, d.Y_train_batch, d.X_test_batch, d.Y_test_batch,
-                                  d.X_val_batch, d.Y_val_batch, aeModel, loss_fn, optim, 20, d.fetch_columns(), L)
+                                  d.X_val_batch, d.Y_val_batch, aeModel, loss_fn, optim, 30, d.fetch_columns(), L)
 
     trainer = Trainer([instanceModel])
     trainer.trainAll()

@@ -49,4 +49,11 @@ class TrainingModel():
         return np.array(flattened_data, dtype=[('event', bool), ('time', float)])
 
     def compute_model_loss(self, X, predX):
-        return self.loss_fn.compute_loss(X, predX, self.model.parameters())
+        mode = 'Val'
+        if self.model.training:
+            mode = 'Train'
+        return self.loss_fn.compute_loss(mode, X, predX, self.model.parameters())
+
+    def fetch_model_loss(self):
+        loss_dict = self.loss_fn.loss_dict
+

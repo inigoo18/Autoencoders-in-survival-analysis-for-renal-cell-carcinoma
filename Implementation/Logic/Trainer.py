@@ -29,6 +29,7 @@ class Trainer:
 
     def train(self, idx):
         tr_model = self.models[idx]
+        tr_model.loss_fn.clear()
         best_validation_loss = float('inf')
         best_model_state = None
         best_epoch = -1
@@ -76,6 +77,8 @@ class Trainer:
             print("Epoch", t, "completed with average training loss:", round(avg_train_loss,2))
             print("Epoch", t, "completed with average validation loss:", round(avg_valid_loss,2))
 
+            loss_dict_tr, loss_dict_val = tr_model.loss_fn.process_batch(num_train_batches, num_val_batches)
+
             # Check if validation loss improved
             if avg_valid_loss < best_validation_loss:
                 best_validation_loss = avg_valid_loss
@@ -87,7 +90,7 @@ class Trainer:
 
         print("Loading model with best loss", best_validation_loss, "found in Epoch", best_epoch)
 
-        plot_losses(np.arange(tr_model.epochs+1), tr_losses, val_losses, tr_model.name+"/train_val_loss.png")
+        plot_losses(np.arange(tr_model.epochs+1), loss_dict_tr, loss_dict_val, tr_model.name+"/train_val_loss.png")
 
     def trainAll(self):
         for idx in range(len(self.models)):
@@ -109,6 +112,9 @@ class Trainer:
         step = 0.00002
         estimated_alphas = np.arange(start, stop + step, step)
 
+        # we remove warnings when coefficients in Cox PH model are 0
+        warnings.simplefilter("ignore", UserWarning)
+        warnings.simplefilter("ignore", FitFailedWarning)
 
         cv = KFold(n_splits=5, shuffle = True, random_state = 46)
         gcv = GridSearchCV(
@@ -180,16 +186,24 @@ class Trainer:
 
 
 
-def plot_losses(epochs, train, val, dir):
-    valBest = min(val)
+def plot_losses(epochs, data_tr, data_val, dir):
+    combined_tr = [x + y for x, y in zip(data_tr['MSE'], data_tr['SPARSE'])]
+    combined_val = [x + y for x, y in zip(data_val['MSE'], data_val['SPARSE'])]
 
-    plt.figure(figsize=(10, 6))
+    bestVal = min(combined_val)
 
-    plt.plot(epochs, train, label="Train", marker='o', linestyle='-', color='#1f77b4',
-             linewidth=2)
-    plt.plot(epochs, val, label="Val", marker='s', linestyle='--', color='#ff7f0e',
-             linewidth=2)
-    plt.axhline(valBest, linestyle='--', color='#FF6961', linewidth=2)
+    plt.figure(figsize=(10, 6))  # Set the figure size
+
+    plt.plot(epochs, combined_tr, label="Train", marker='o', linestyle='-', color='#1f77b4', linewidth=2,
+             alpha=0.8)  # Customize train curve with softer blue color
+    plt.plot(epochs, combined_val, label="Val", marker='s', linestyle='-', color='#ff7f0e', linewidth=2, alpha=0.8)
+
+    plt.plot(epochs, data_tr['MSE'], linestyle='--', color='#1f77b4', linewidth=2, alpha=0.5)
+    plt.plot(epochs, data_val['MSE'], linestyle='--', color='#ff7f0e', linewidth=2, alpha=0.5)
+
+    plt.fill_between(epochs, data_tr['MSE'], combined_tr, color='#1f77b4', alpha=0.05, hatch='o')
+    plt.fill_between(epochs, data_val['MSE'], combined_val, color='#ff7f0e', alpha=0.05, hatch='.')
+    plt.axhline(bestVal, linestyle='-', color='#FF6961', linewidth=2, alpha=1)
 
     plt.title("Training and Validation Loss Over Time", fontsize=16)
     plt.xlabel("Epoch", fontsize=14)
