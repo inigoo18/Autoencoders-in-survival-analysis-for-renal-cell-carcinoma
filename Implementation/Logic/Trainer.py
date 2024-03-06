@@ -16,6 +16,8 @@ from sklearn.exceptions import FitFailedWarning
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
+from sklearn.manifold import TSNE
+
 
 class Trainer:
     """
@@ -85,7 +87,7 @@ class Trainer:
                 best_model_state = tr_model.model.state_dict()
                 best_epoch = t
 
-        torch.save(best_model_state, 'best_model_loss_'+str(round(best_validation_loss, 2)))
+        torch.save(best_model_state, 'best_model_loss_' + str(round(best_validation_loss)) + '.pth')
         tr_model.model.load_state_dict(best_model_state)
 
         print("Loading model with best loss", best_validation_loss, "found in Epoch", best_epoch)
@@ -94,22 +96,22 @@ class Trainer:
 
     def trainAll(self):
         for idx in range(len(self.models)):
-            self.train(idx)
+            if not self.models[idx].trained:
+                self.train(idx)
 
     def evaluate(self, idx):
         eval_model = self.models[idx]
         eval_model.model.eval()
 
         latent_cols = ["Latent " + str(x) for x in list(range(eval_model.L))]
+        latent_idxs = np.arange(eval_model.L)
 
         latent_space_train = eval_model.model.get_latent_space(torch.tensor(eval_model.unroll_Xtrain())).detach().numpy()
         latent_space_test = eval_model.model.get_latent_space(torch.tensor(eval_model.unroll_Xtest())).detach().numpy()
 
-        print(latent_space_train)
-
         start = 0.00001
-        stop = 0.1
-        step = 0.00002
+        stop = 0.05
+        step = 0.0005
         estimated_alphas = np.arange(start, stop + step, step)
 
         # we remove warnings when coefficients in Cox PH model are 0
@@ -145,7 +147,8 @@ class Trainer:
         ax.axvline(gcv.best_params_["coxnetsurvivalanalysis__alphas"][0], c="C1")
         ax.axhline(0.5, color="grey", linestyle="--")
         ax.grid(True)
-        plt.show()
+        plt.savefig(eval_model.name+"/c-index")
+        #plt.show()
 
 
         best_model = gcv.best_estimator_.named_steps['coxnetsurvivalanalysis']
@@ -165,8 +168,21 @@ class Trainer:
         non_zero_coefs.loc[coef_order].plot.barh(ax=ax, legend=False)
         ax.set_xlabel("coefficient")
         ax.grid(True)
+        plt.savefig(eval_model.name + "/relevant_features")
+        #plt.show()
 
-        plt.show()
+        latent_data = zip(latent_cols, latent_idxs)
+        idxs_interest = []
+        cols_interest = list(coef_order)
+
+        for col, idx in latent_data:
+            if col in list(coef_order):
+                idxs_interest += [idx]
+
+        data_coefs = [x for idx in idxs_interest for x in [latent_space_train[idx]]]
+        data_coefs = [list(values) for values in zip(*data_coefs)]
+
+        plot_tsne_coefs(data_coefs, cols_interest, eval_model.name + "/tsne")
 
         print("Finished")
 
@@ -183,6 +199,26 @@ class Trainer:
         for idx in range(len(self.models)):
             self.evaluate(idx)
 
+
+
+def plot_tsne_coefs(data, names, dir):
+    print("Applying tSNE on data with following variables:")
+    for i in names:
+        print(i)
+
+    x_embedded = TSNE(n_components=2, perplexity=2).fit_transform(np.array(data))
+
+    plt.figure(figsize=(8, 6))
+
+    plt.scatter(x_embedded[:, 0], x_embedded[:, 1], c='blue', alpha=0.7, label='Data Points')
+    plt.xlabel('Dimension 1', fontsize=12)
+    plt.ylabel('Dimension 2', fontsize=12)
+    plt.title('t-SNE Visualization', fontsize=14)
+    # plt.legend(loc='best', fontsize=10)
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(dir)
+    #plt.show()
 
 
 

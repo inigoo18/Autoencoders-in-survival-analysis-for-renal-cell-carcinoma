@@ -35,6 +35,7 @@ class MWE_AE(torch.nn.Module):
             torch.nn.Dropout(0.1),
             torch.nn.Linear(500,L),
             torch.nn.BatchNorm1d(L),
+            torch.nn.Sigmoid()
         )
 
         self.decoder = torch.nn.Sequential(
@@ -60,6 +61,7 @@ class MWE_AE(torch.nn.Module):
             torch.nn.Dropout(0.1),
             torch.nn.Linear(2500, input_dim),
             torch.nn.BatchNorm1d(input_dim),
+            torch.nn.Sigmoid()
         )
 
     def forward(self, x):

@@ -10,7 +10,8 @@ from Logic.Losses.LossHandler import LossHandler
 
 
 class TrainingModel():
-    def __init__(self, name, X_train, y_train, X_test, y_test, X_val, y_val, model : torch.nn.Module, loss_fn : LossHandler, optim: Type[torch.optim.Optimizer], epochs: int, columns, L):
+    def __init__(self, name, X_train, y_train, X_test, y_test, X_val, y_val, model : torch.nn.Module,
+                 loss_fn : LossHandler, optim: Type[torch.optim.Optimizer], epochs: int, columns, L, load_state = None):
         self.name = name
         self.X_train = X_train
         self.y_train = y_train
@@ -24,8 +25,12 @@ class TrainingModel():
         self.epochs = epochs
         self.columns = columns
         self.L = L
+        self.trained = False
         if not os.path.exists(name):
             os.makedirs(name)
+        if load_state != None:
+            self.model.load_state_dict(torch.load(load_state))
+            self.trained = True
 
     def unroll_Xtrain(self):
         return [i for j in self.X_train for i in j]

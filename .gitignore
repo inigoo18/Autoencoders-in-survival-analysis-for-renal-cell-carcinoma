@@ -6,3 +6,4 @@ Notebooks/.ipynb_checkpoints/*
 *.tsv
 *.edgelist
 *.pyc
+*.pth
