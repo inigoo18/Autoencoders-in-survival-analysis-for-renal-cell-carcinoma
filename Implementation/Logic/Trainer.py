@@ -5,6 +5,7 @@ from typing import List
 
 from sklearn.model_selection import KFold, GridSearchCV
 from sksurv.linear_model import CoxnetSurvivalAnalysis
+from sksurv.metrics import cumulative_dynamic_auc
 
 from Logic.TrainingModel import TrainingModel
 import numpy as np
@@ -148,11 +149,13 @@ class Trainer:
         ax.axhline(0.5, color="grey", linestyle="--")
         ax.grid(True)
         plt.savefig(eval_model.name+"/c-index")
+        plt.clf()
         #plt.show()
 
 
         best_model = gcv.best_estimator_.named_steps['coxnetsurvivalanalysis']
         best_coefs = pd.DataFrame(best_model.coef_, index=latent_cols, columns=["coefficient"])
+        best_alpha = gcv.best_params_["coxnetsurvivalanalysis__alphas"][0]
 
         non_zero = np.sum(best_coefs.iloc[:, 0] != 0)
         print(f"Number of non-zero coefficients: {non_zero}")
@@ -169,6 +172,7 @@ class Trainer:
         ax.set_xlabel("coefficient")
         ax.grid(True)
         plt.savefig(eval_model.name + "/relevant_features")
+        plt.clf()
         #plt.show()
 
         latent_data = zip(latent_cols, latent_idxs)
@@ -183,6 +187,28 @@ class Trainer:
         data_coefs = [list(values) for values in zip(*data_coefs)]
 
         plot_tsne_coefs(data_coefs, cols_interest, eval_model.name + "/tsne")
+
+        cph_risk_scores = best_model.predict(latent_space_test, alpha = best_alpha)
+
+        times = eval_model.unroll_Ytest()['time']
+
+        va_times = np.arange(min(times), max(times), 0.5)
+        cph_auc, _ = cumulative_dynamic_auc(eval_model.unroll_Ytrain(), eval_model.unroll_Ytest(), cph_risk_scores, va_times)
+
+        print("TIMES")
+        print(times)
+        print("MEAN")
+        print(cph_auc)
+        # TODO :: review this part
+
+        plt.plot(va_times, cph_auc, marker="o")
+        plt.axhline(np.mean(cph_auc[~np.isnan(cph_auc)]), linestyle="--")
+
+        plt.xlabel("days from enrollment")
+        plt.ylabel("time-dependent AUC")
+        plt.grid(True)
+        plt.savefig(eval_model.name + "/ROC")
+        plt.clf()
 
         print("Finished")
 
@@ -218,6 +244,7 @@ def plot_tsne_coefs(data, names, dir):
     plt.grid(True)
     plt.tight_layout()
     plt.savefig(dir)
+    plt.clf()
     #plt.show()
 
 
@@ -256,5 +283,4 @@ def plot_losses(epochs, data_tr, data_val, dir):
     plt.tight_layout()
 
     plt.savefig(dir)
-
-    plt.show()
+    plt.clf()
