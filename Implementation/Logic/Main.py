@@ -27,8 +27,8 @@ if __name__ == "__main__":
     loss_fn = LossHandler(LossType.SPARSE, loss_args)
     aeModel = MWE_AE(d.input_dim_train(), L)
     optim = torch.optim.Adam(aeModel.parameters(), lr = 0.01)
-    instanceModel = TrainingModel("MWP_no_norm", d.X_train_batch, d.Y_train_batch, d.X_test_batch, d.Y_test_batch,
-                                  d.X_val_batch, d.Y_val_batch, aeModel, loss_fn, optim, 100, d.fetch_columns(), L)#, 'best_model_loss_7062.pth')
+    instanceModel = TrainingModel("MWP", d.X_train_batch, d.Y_train_batch, d.X_test_batch, d.Y_test_batch,
+                                  d.X_val_batch, d.Y_val_batch, aeModel, loss_fn, optim, 100, d.fetch_columns(), L)#, 'best_model_loss_5474.pth')
 
     trainer = Trainer([instanceModel])
     trainer.trainAll()

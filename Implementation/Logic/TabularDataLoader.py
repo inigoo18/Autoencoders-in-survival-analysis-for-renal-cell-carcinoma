@@ -12,10 +12,12 @@ class TabularDataLoader:
 
     def __init__(self, file_path, pred_vars, test_ratio, val_ratio):
         # Load file and convert into float32 since model parameters initialized w/ Pytorch are in float32
-        dataframe = pd.read_csv(file_path, sep=',', index_col=0)
-        self.dataframe = dataframe.astype('float32')
+        dataframe = pd.read_csv(file_path, sep=',', index_col=0).astype('float32')
+        self.dataframe = dataframe
 
-        train_set, test_set, val_set = self.train_test_val_split(self.dataframe, test_ratio, val_ratio)
+        dataframe = normalize_data(dataframe)
+
+        train_set, test_set, val_set = self.train_test_val_split(dataframe, test_ratio, val_ratio)
 
         self.X_train = train_set.drop(columns = pred_vars)
         self.X_test = test_set.drop(columns = pred_vars)
@@ -137,3 +139,18 @@ def create_batches(data, labels, size):
         idxs_chosen += [batch_idxs]
 
     return data_batches_X, data_batches_Y, idxs_chosen
+
+def normalize_data(dataframe):
+    '''
+    Normalizes a dataframe after removing PFS and CENSOR columns. Once the normalization is done, we add the cols back in
+    :param dataframe: DF to normalize
+    :return: normalized DF based in the genetic expressions
+    '''
+    DF = dataframe.drop(['PFS', 'CENSOR'], axis=1)
+    maxVal = max([x for L in DF.values for x in L])
+    X_normalized = DF / maxVal
+
+    X_normalized['PFS'] = dataframe['PFS']
+    X_normalized['CENSOR'] = dataframe['CENSOR']
+
+    return X_normalized

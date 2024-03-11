@@ -6,7 +6,7 @@ from typing import List
 from sklearn.cluster import KMeans
 from sklearn.model_selection import KFold, GridSearchCV
 from sksurv.linear_model import CoxnetSurvivalAnalysis
-from sksurv.metrics import cumulative_dynamic_auc
+from sksurv.metrics import cumulative_dynamic_auc, as_concordance_index_ipcw_scorer
 
 from Logic.TrainingModel import TrainingModel
 import numpy as np
@@ -122,8 +122,8 @@ class Trainer:
 
         cv = KFold(n_splits=5, shuffle = True, random_state = 46)
         gcv = GridSearchCV(
-            make_pipeline(StandardScaler(), CoxnetSurvivalAnalysis(l1_ratio=0.95)),
-            param_grid = {"coxnetsurvivalanalysis__alphas": [[v] for v in estimated_alphas]},
+            as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.95)),
+            param_grid = {"estimator__alphas": [[v] for v in estimated_alphas]},
             cv = cv,
             error_score = 0,
             n_jobs = 4,
@@ -131,7 +131,7 @@ class Trainer:
 
         cv_results = pd.DataFrame(gcv.cv_results_)
 
-        alphas = cv_results.param_coxnetsurvivalanalysis__alphas.map(lambda x: x[0])
+        alphas = cv_results.param_estimator__alphas.map(lambda x: x[0])
         mean = cv_results.mean_test_score
         std = cv_results.std_test_score
 
@@ -144,9 +144,9 @@ class Trainer:
         ax.plot(alphas, mean)
         ax.fill_between(alphas, mean - std, mean + std, alpha=0.15)
         ax.set_xscale("log")
-        ax.set_ylabel("concordance index")
+        ax.set_ylabel("concordance index IPCW")
         ax.set_xlabel("alpha")
-        ax.axvline(gcv.best_params_["coxnetsurvivalanalysis__alphas"][0], c="C1")
+        ax.axvline(gcv.best_params_["estimator__alphas"][0], c="C1")
         ax.axhline(0.5, color="grey", linestyle="--")
         ax.grid(True)
         plt.savefig(eval_model.name+"/c-index")
@@ -154,9 +154,9 @@ class Trainer:
         #plt.show()
 
 
-        best_model = gcv.best_estimator_.named_steps['coxnetsurvivalanalysis']
+        best_model = gcv.best_estimator_.estimator
         best_coefs = pd.DataFrame(best_model.coef_, index=latent_cols, columns=["coefficient"])
-        best_alpha = gcv.best_params_["coxnetsurvivalanalysis__alphas"][0]
+        best_alpha = gcv.best_params_["estimator__alphas"][0]
 
         non_zero = np.sum(best_coefs.iloc[:, 0] != 0)
         print(f"Number of non-zero coefficients: {non_zero}")
@@ -196,16 +196,10 @@ class Trainer:
         va_times = np.arange(min(times), max(times), 0.5)
         cph_auc, _ = cumulative_dynamic_auc(eval_model.unroll_Ytrain(), eval_model.unroll_Ytest(), cph_risk_scores, va_times)
 
-        print("TIMES")
-        print(times)
-        print("MEAN")
-        print(cph_auc)
-        # TODO :: review this part
-
         plt.plot(va_times, cph_auc, marker="o")
         plt.axhline(np.mean(cph_auc[~np.isnan(cph_auc)]), linestyle="--")
 
-        plt.xlabel("days from enrollment")
+        plt.xlabel("months from enrollment")
         plt.ylabel("time-dependent AUC")
         plt.grid(True)
         plt.savefig(eval_model.name + "/ROC")
@@ -257,7 +251,7 @@ def plot_tsne_coefs(data, names, dir):
 
 
 def plot_losses(epochs, data_tr, data_val, dir):
-    DEBUG = False
+    DEBUG = True
     combined_tr = [sum(values) for values in zip(*[data_tr[key] for key in data_tr.keys()])]
     combined_val = [sum(values) for values in zip(*[data_val[key] for key in data_val.keys()])]
 
