@@ -19,7 +19,7 @@ class TabularDataLoader:
         y = self.prepare_labels()
         self.X_train, self.Y_train, self.X_test, self.Y_test, self.X_val, self.Y_val = self.train_test_val_split(X, y,
                                                                                                                  1 - trte_ratio)
-        self._normalize_data()
+        #self._normalize_data()
         self._create_batches(64)
 
     def describe_dataframe(self):
@@ -61,7 +61,7 @@ class TabularDataLoader:
         '''
         Normalizes train and test data
         '''
-        scaler = MinMaxScaler()
+        scaler = MinMaxScaler(feature_range=(0,1))
 
         self.X_train = pd.DataFrame(scaler.fit_transform(self.X_train), columns=self.X_train.columns,
                                     index=self.X_train.index)

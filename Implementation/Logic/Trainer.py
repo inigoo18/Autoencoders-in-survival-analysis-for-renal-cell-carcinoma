@@ -3,6 +3,7 @@ import math
 
 from typing import List
 
+from sklearn.cluster import KMeans
 from sklearn.model_selection import KFold, GridSearchCV
 from sksurv.linear_model import CoxnetSurvivalAnalysis
 from sksurv.metrics import cumulative_dynamic_auc
@@ -110,9 +111,9 @@ class Trainer:
         latent_space_train = eval_model.model.get_latent_space(torch.tensor(eval_model.unroll_Xtrain())).detach().numpy()
         latent_space_test = eval_model.model.get_latent_space(torch.tensor(eval_model.unroll_Xtest())).detach().numpy()
 
-        start = 0.00001
-        stop = 0.05
-        step = 0.0005
+        start = 0.0001
+        stop = 0.1
+        step = 0.0003
         estimated_alphas = np.arange(start, stop + step, step)
 
         # we remove warnings when coefficients in Cox PH model are 0
@@ -232,14 +233,20 @@ def plot_tsne_coefs(data, names, dir):
     for i in names:
         print(i)
 
+    kmeans = KMeans(n_clusters = 2, random_state = 42)
+    kmeans.fit(data)
+    cluster_labels = kmeans.labels_
+
     x_embedded = TSNE(n_components=2, perplexity=2).fit_transform(np.array(data))
 
     plt.figure(figsize=(8, 6))
 
-    plt.scatter(x_embedded[:, 0], x_embedded[:, 1], c='blue', alpha=0.7, label='Data Points')
+    plt.scatter(x_embedded[:, 0], x_embedded[:, 1], c=cluster_labels, cmap = 'viridis', alpha=0.7, label='Data Points')
+    plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], c='red', marker='X', s=100,
+                label='Centroids')
     plt.xlabel('Dimension 1', fontsize=12)
     plt.ylabel('Dimension 2', fontsize=12)
-    plt.title('t-SNE Visualization', fontsize=14)
+    plt.title('t-SNE Visualization with KMeans clustering', fontsize=14)
     # plt.legend(loc='best', fontsize=10)
     plt.grid(True)
     plt.tight_layout()
@@ -250,6 +257,7 @@ def plot_tsne_coefs(data, names, dir):
 
 
 def plot_losses(epochs, data_tr, data_val, dir):
+    DEBUG = False
     combined_tr = [sum(values) for values in zip(*[data_tr[key] for key in data_tr.keys()])]
     combined_val = [sum(values) for values in zip(*[data_val[key] for key in data_val.keys()])]
 
@@ -263,13 +271,14 @@ def plot_losses(epochs, data_tr, data_val, dir):
     plt.text(epochs[-1] + 0.15, combined_tr[-1], 'ALL', verticalalignment='center', fontsize=7)
     plt.text(epochs[-1] + 0.15, combined_val[-1], 'ALL', verticalalignment='center', fontsize=7)
 
-    for idx, key in enumerate(list(data_tr.keys())):
-        plt.plot(epochs, data_tr[key], linestyle='--', color='#1f77b4', linewidth=2, alpha=0.5)
-        plt.text(epochs[-1] + 0.15, data_tr[key][-1], key, verticalalignment='center', fontsize=7, color='#1f77b4')
+    if DEBUG:
+        for idx, key in enumerate(list(data_tr.keys())):
+            plt.plot(epochs, data_tr[key], linestyle='--', color='#1f77b4', linewidth=2, alpha=0.35)
+            plt.text(epochs[-1] + 0.15, data_tr[key][-1], key, verticalalignment='center', fontsize=7, color='#1f77b4')
 
-    for idx, key in enumerate(list(data_val.keys())):
-        plt.plot(epochs, data_val[key], linestyle='--', color='#ff7f0e', linewidth=2, alpha=0.5)
-        plt.text(epochs[-1] + 0.15, data_val[key][-1], key, verticalalignment='center', fontsize=7, color='#ff7f0e')
+        for idx, key in enumerate(list(data_val.keys())):
+            plt.plot(epochs, data_val[key], linestyle='--', color='#ff7f0e', linewidth=2, alpha=0.35)
+            plt.text(epochs[-1] + 0.15, data_val[key][-1], key, verticalalignment='center', fontsize=7, color='#ff7f0e')
 
     plt.axhline(bestVal, linestyle='-', color='#FF6961', linewidth=2, alpha=1)
 
