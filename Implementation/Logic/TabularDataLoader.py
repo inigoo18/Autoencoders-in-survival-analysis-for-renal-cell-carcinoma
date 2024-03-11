@@ -10,15 +10,21 @@ class TabularDataLoader:
     Class that holds the DataFrame where the tabular data is located.
     """
 
-    def __init__(self, file_path, pred_vars, trte_ratio):
+    def __init__(self, file_path, pred_vars, test_ratio, val_ratio):
         # Load file and convert into float32 since model parameters initialized w/ Pytorch are in float32
         dataframe = pd.read_csv(file_path, sep=',', index_col=0)
         self.dataframe = dataframe.astype('float32')
 
-        X = self.dataframe.drop(columns=pred_vars)
-        y = self.prepare_labels()
-        self.X_train, self.Y_train, self.X_test, self.Y_test, self.X_val, self.Y_val = self.train_test_val_split(X, y,
-                                                                                                                 1 - trte_ratio)
+        train_set, test_set, val_set = self.train_test_val_split(self.dataframe, test_ratio, val_ratio)
+
+        self.X_train = train_set.drop(columns = pred_vars)
+        self.X_test = test_set.drop(columns = pred_vars)
+        self.X_val = val_set.drop(columns=pred_vars)
+
+        self.Y_train = self.prepare_labels(train_set)
+        self.Y_test = self.prepare_labels(test_set)
+        self.Y_val = self.prepare_labels(val_set)
+
         #self._normalize_data()
         self._create_batches(64)
 
@@ -34,21 +40,44 @@ class TabularDataLoader:
     def input_dim_test(self):
         return len(self.Y_train.iloc[0])
 
-    def train_test_val_split(self, X, y, tr_ratio):
-        te_val_ratio = (1 - tr_ratio) / 2
-        size = len(X)
-        tr_size = int(size * tr_ratio)
-        te_val_size = int(size * te_val_ratio)
-        return X[:tr_size], y[:tr_size], \
-               X[tr_size:tr_size + te_val_size], y[tr_size:tr_size + te_val_size], \
-               X[tr_size + te_val_size:], y[tr_size + te_val_size:]
+    def train_test_val_split(self, tabular_data, test_ratio, val_ratio):
+        '''
+        Method that takes the general DF and separates it into train/test/val DFs while keeping the CENSOR variable
+        in similar proportions between dataframes
+        :param tabular_data: DF
+        :param test_ratio: float value representing test ratio
+        :param val_ratio: float value representing val ratio
+        :return: train, test and val sets (DFs)
+        '''
+        A_indices = tabular_data[tabular_data['CENSOR'] == 0].index
+        B_indices = tabular_data[tabular_data['CENSOR'] == 1].index
 
-    def prepare_labels(self):
+        # Splitting A_indices into training, testing, and validation sets
+        A_train, A_temp = train_test_split(A_indices, test_size=test_ratio + val_ratio, random_state=42)
+        A_test, A_val = train_test_split(A_temp, test_size=val_ratio / (test_ratio + val_ratio), random_state=42)
+
+        # Splitting B_indices into training, testing, and validation sets
+        B_train, B_temp = train_test_split(B_indices, test_size=test_ratio + val_ratio, random_state=42)
+        B_test, B_val = train_test_split(B_temp, test_size=val_ratio / (test_ratio + val_ratio), random_state=42)
+
+        # Combining the sets
+        train_indices = list(A_train) + list(B_train)
+        test_indices = list(A_test) + list(B_test)
+        val_indices = list(A_val) + list(B_val)
+
+        # Creating the sets
+        train_set = tabular_data.loc[train_indices]
+        test_set = tabular_data.loc[test_indices]
+        val_set = tabular_data.loc[val_indices]
+
+        return train_set, test_set, val_set
+
+    def prepare_labels(self, dataframe):
         '''
         Labels are supposed to be in the form of (censorship, time of event)
         '''
-        pfs = self.dataframe['PFS']
-        cnsr = self.dataframe['CENSOR']
+        pfs = dataframe['PFS']
+        cnsr = dataframe['CENSOR']
         result = []
         for p, c in zip(pfs, cnsr):
             b = False

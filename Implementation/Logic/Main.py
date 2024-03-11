@@ -16,7 +16,7 @@ if __name__ == "__main__":
     somepath = os.path.abspath(
         os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_tabular_R3.csv'))
 
-    d = TabularDataLoader(somepath, ['PFS', 'CENSOR'], 0.2)
+    d = TabularDataLoader(somepath, ['PFS', 'CENSOR'], 0.2, 0.1) # 70% train, 20% test, 10% val
 
     torch.manual_seed(42)
     np.random.seed(42)
