@@ -27,6 +27,9 @@ class TabularDataLoader:
         self.Y_test = self.prepare_labels(test_set)
         self.Y_val = self.prepare_labels(val_set)
 
+        # We keep this in order to use it for demographic data and stuff
+        self.Y_dataframe = test_set
+
         #self._normalize_data()
         self._create_batches(64)
 

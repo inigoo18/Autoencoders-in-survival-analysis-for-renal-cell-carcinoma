@@ -10,7 +10,7 @@ from Logic.Losses.LossHandler import LossHandler
 
 
 class TrainingModel():
-    def __init__(self, name, X_train, y_train, X_test, y_test, X_val, y_val, model : torch.nn.Module,
+    def __init__(self, name, X_train, y_train, X_test, y_test, X_val, y_val, demographic_test, model : torch.nn.Module,
                  loss_fn : LossHandler, optim: Type[torch.optim.Optimizer], epochs: int, columns, L, load_state = None):
         self.name = name
         self.X_train = X_train
@@ -19,6 +19,8 @@ class TrainingModel():
         self.y_test = y_test
         self.X_val = X_val
         self.y_val = y_val
+        # Here we hold a dataframe with all the data regarding test patients
+        self.demographic_test = demographic_test
         self.model = model
         self.loss_fn = loss_fn
         self.optim = optim

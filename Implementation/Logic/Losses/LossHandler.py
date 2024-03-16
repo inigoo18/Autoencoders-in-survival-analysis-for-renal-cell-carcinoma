@@ -16,18 +16,47 @@ class LossHandler():
         self.loss_dict_val = {}
         self.loss_dict_tr['MSE'] = []
         self.loss_dict_val['MSE'] = []
-        if loss_type == LossType.SPARSE:
-            self.loss_dict_tr['SPARSE'] = []
-            self.loss_dict_val['SPARSE'] = []
-            if not 'reg_param' in args:
-                print("ERROR :: Reg_param is a necessary argument for sparse autoencoders, fixing to 0.1")
-                self.args['reg_param'] = 0.1
+        if loss_type != LossType.MSE:
+            self.loss_dict_tr[str(loss_type)] = []
+            self.loss_dict_val[str(loss_type)] = []
+        self.check_arguments()
+
+    def check_arguments(self):
+        if self.loss_type == LossType.SPARSE_L1:
+            keys = ['reg_param']
+        elif self.loss_type == LossType.SPARSE_KL:
+            keys = ['reg_param', 'rho']
+
+        if not (all(key in self.args for key in keys)):
+            print("ERROR :: a loss type was specified but the required arguments haven't")
+
 
     def clear(self):
         self.loss_dict = {}
 
     def _sparse_loss(self, params):
         return sum([p.abs().sum() for p in params])
+
+    def _kl_loss(self, RHO, params):
+        '''
+        The idea of this loss function is that we have two probabilities, RHO and RHO_HAT.
+        RHO is the parameter we choose to regularize the autoencoder with, for example if we set it to 0.1, we
+        expect most parameters to be close to 0.1.
+        RHO_HAT is the actual activation of the neurons by looking at their parameters.
+        By computing the KL divergence between RHO and RHO_HAT, we can find how distinct both probabilities are.
+        :param RHO: hyperparameter to regularize the autoencoder with
+        :param params: argument list defined in LossHandler class
+        :return: each layer adds to the total sparsity loss
+        '''
+        TOTAL = 0
+        for p in params:
+            RHO_HAT = torch.mean(F.tanh(p.abs()))
+            if RHO_HAT == 0: # if the param is 0, we add a little bit so that the calculation doesn't fail
+                RHO_HAT += 0.001
+
+            RES = torch.tanh((RHO * torch.log(RHO / RHO_HAT) + (1 - RHO) * torch.log((1 - RHO) / (1 - RHO_HAT))).abs())
+            TOTAL += RES * len(p) # we multiply by p so we can give some weight depending on how many neurons
+        return TOTAL
 
     def _add_loss(self, mode, name, val):
         if (mode == 'Train'):
@@ -42,10 +71,15 @@ class LossHandler():
         total_loss = criterion(X, predX)
         self._add_loss(mode, 'MSE', total_loss)
 
-        if self.loss_type == LossType.SPARSE:
+        if self.loss_type == LossType.SPARSE_L1:
             sparse_loss = self._sparse_loss(params)
-            self._add_loss(mode, 'SPARSE', sparse_loss * self.args['reg_param'])
+            self._add_loss(mode, 'SPARSE_L1', sparse_loss * self.args['reg_param'])
             total_loss += sparse_loss * self.args['reg_param']
+
+        elif self.loss_type == LossType.SPARSE_KL:
+            kl_loss = self._kl_loss(self.args['rho'], params)
+            self._add_loss(mode, 'SPARSE_KL', kl_loss * self.args['reg_param'])
+            total_loss += kl_loss * self.args['reg_param']
 
         return total_loss
 

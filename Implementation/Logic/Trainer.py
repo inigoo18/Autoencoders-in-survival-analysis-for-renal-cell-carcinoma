@@ -4,6 +4,7 @@ import math
 from typing import List
 
 from sklearn.cluster import KMeans
+from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import KFold, GridSearchCV
 from sksurv.linear_model import CoxnetSurvivalAnalysis
 from sksurv.metrics import cumulative_dynamic_auc, as_concordance_index_ipcw_scorer
@@ -59,6 +60,7 @@ class Trainer:
                 # Zero gradients, backward pass, and update parameters
                 tr_model.optim.zero_grad()
                 loss.backward()
+
                 tr_model.optim.step()
 
 
@@ -111,9 +113,9 @@ class Trainer:
         latent_space_train = eval_model.model.get_latent_space(torch.tensor(eval_model.unroll_Xtrain())).detach().numpy()
         latent_space_test = eval_model.model.get_latent_space(torch.tensor(eval_model.unroll_Xtest())).detach().numpy()
 
-        start = 0.0001
+        start = 0.00001
         stop = 0.1
-        step = 0.0003
+        step = 0.00005
         estimated_alphas = np.arange(start, stop + step, step)
 
         # we remove warnings when coefficients in Cox PH model are 0
@@ -122,7 +124,7 @@ class Trainer:
 
         cv = KFold(n_splits=5, shuffle = True, random_state = 46)
         gcv = GridSearchCV(
-            as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.95)),
+            as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.95, fit_baseline_model = True)),
             param_grid = {"estimator__alphas": [[v] for v in estimated_alphas]},
             cv = cv,
             error_score = 0,
@@ -140,23 +142,12 @@ class Trainer:
         print("Mean:")
         print(mean)
 
-        fig, ax = plt.subplots(figsize=(9, 6))
-        ax.plot(alphas, mean)
-        ax.fill_between(alphas, mean - std, mean + std, alpha=0.15)
-        ax.set_xscale("log")
-        ax.set_ylabel("concordance index IPCW")
-        ax.set_xlabel("alpha")
-        ax.axvline(gcv.best_params_["estimator__alphas"][0], c="C1")
-        ax.axhline(0.5, color="grey", linestyle="--")
-        ax.grid(True)
-        plt.savefig(eval_model.name+"/c-index")
-        plt.clf()
-        #plt.show()
-
-
         best_model = gcv.best_estimator_.estimator
         best_coefs = pd.DataFrame(best_model.coef_, index=latent_cols, columns=["coefficient"])
         best_alpha = gcv.best_params_["estimator__alphas"][0]
+
+        plot_cindex(alphas, mean, std, best_alpha, eval_model.name + "/c-index")
+
 
         non_zero = np.sum(best_coefs.iloc[:, 0] != 0)
         print(f"Number of non-zero coefficients: {non_zero}")
@@ -168,13 +159,7 @@ class Trainer:
         non_zero_coefs = best_coefs.query("coefficient != 0")
         coef_order = non_zero_coefs.abs().sort_values("coefficient").index
 
-        _, ax = plt.subplots(figsize=(6, 8))
-        non_zero_coefs.loc[coef_order].plot.barh(ax=ax, legend=False)
-        ax.set_xlabel("coefficient")
-        ax.grid(True)
-        plt.savefig(eval_model.name + "/relevant_features")
-        plt.clf()
-        #plt.show()
+        plot_coefs(non_zero_coefs, coef_order, eval_model.name + "/relevant_features")
 
         latent_data = zip(latent_cols, latent_idxs)
         idxs_interest = []
@@ -187,8 +172,10 @@ class Trainer:
         data_coefs = [x for idx in idxs_interest for x in [latent_space_train[idx]]]
         data_coefs = [list(values) for values in zip(*data_coefs)]
 
-        plot_tsne_coefs(data_coefs, cols_interest, eval_model.name + "/tsne")
+        if non_zero >= 2:
+            plot_tsne_coefs(data_coefs, cols_interest, eval_model.name + "/tsne")
 
+        # Predict using the best model and the test latent space
         cph_risk_scores = best_model.predict(latent_space_test, alpha = best_alpha)
 
         times = eval_model.unroll_Ytest()['time']
@@ -196,24 +183,24 @@ class Trainer:
         va_times = np.arange(min(times), max(times), 0.5)
         cph_auc, _ = cumulative_dynamic_auc(eval_model.unroll_Ytrain(), eval_model.unroll_Ytest(), cph_risk_scores, va_times)
 
-        plt.plot(va_times, cph_auc, marker="o")
-        plt.axhline(np.mean(cph_auc[~np.isnan(cph_auc)]), linestyle="--")
+        plot_auc(va_times, cph_auc, eval_model.name + "/ROC")
 
-        plt.xlabel("months from enrollment")
-        plt.ylabel("time-dependent AUC")
-        plt.grid(True)
-        plt.savefig(eval_model.name + "/ROC")
-        plt.clf()
+        # Using survival functions, obtain median and assign it to each patient.
+        survival_functions = best_model.predict_survival_function(latent_space_test, best_alpha)
+        predicted_times = []
+        for g in range(len(survival_functions)):
+            median_value = np.interp(0.5, survival_functions[g].y[::-1], survival_functions[g].x[::-1])
+            predicted_times += [median_value]
+
+        eval_model.demographic_test['predicted_PFS'] = predicted_times
+        eval_model.demographic_test.to_csv('predictions_test.csv', index=True)
+
+        evaluate_demographic_data(eval_model, survival_functions)
+
 
         print("Finished")
 
 
-        # TODO: before proceeding, we need to give a name to each latent feature.
-        # link (see which features are most important in cox ph model):
-        # https://scikit-survival.readthedocs.io/en/stable/user_guide/coxnet.html
-
-        # link (how to evaluate survival models):
-        # https://scikit-survival.readthedocs.io/en/stable/user_guide/evaluating-survival-models.html
 
 
     def evaluateAll(self):
@@ -252,8 +239,14 @@ def plot_tsne_coefs(data, names, dir):
 
 def plot_losses(epochs, data_tr, data_val, dir):
     DEBUG = True
+    OFFSET = 5
+
     combined_tr = [sum(values) for values in zip(*[data_tr[key] for key in data_tr.keys()])]
     combined_val = [sum(values) for values in zip(*[data_val[key] for key in data_val.keys()])]
+
+    epochs = epochs[OFFSET:]
+    combined_tr = combined_tr[OFFSET:]
+    combined_val = combined_val[OFFSET:]
 
     bestVal = min(combined_val)
 
@@ -267,11 +260,11 @@ def plot_losses(epochs, data_tr, data_val, dir):
 
     if DEBUG:
         for idx, key in enumerate(list(data_tr.keys())):
-            plt.plot(epochs, data_tr[key], linestyle='--', color='#1f77b4', linewidth=2, alpha=0.35)
+            plt.plot(epochs, data_tr[key][OFFSET:], linestyle='--', color='#1f77b4', linewidth=2, alpha=0.35)
             plt.text(epochs[-1] + 0.15, data_tr[key][-1], key, verticalalignment='center', fontsize=7, color='#1f77b4')
 
         for idx, key in enumerate(list(data_val.keys())):
-            plt.plot(epochs, data_val[key], linestyle='--', color='#ff7f0e', linewidth=2, alpha=0.35)
+            plt.plot(epochs, data_val[key][OFFSET:], linestyle='--', color='#ff7f0e', linewidth=2, alpha=0.35)
             plt.text(epochs[-1] + 0.15, data_val[key][-1], key, verticalalignment='center', fontsize=7, color='#ff7f0e')
 
     plt.axhline(bestVal, linestyle='-', color='#FF6961', linewidth=2, alpha=1)
@@ -287,3 +280,53 @@ def plot_losses(epochs, data_tr, data_val, dir):
 
     plt.savefig(dir)
     plt.clf()
+
+def plot_cindex(alphas, mean, std, best_alpha, dir):
+    fig, ax = plt.subplots(figsize=(9, 6))
+    ax.plot(alphas, mean)
+    ax.fill_between(alphas, mean - std, mean + std, alpha=0.15)
+    ax.set_xscale("log")
+    ax.set_ylabel("concordance index IPCW")
+    ax.set_xlabel("alpha")
+    ax.axvline(best_alpha, c="C1")
+    ax.axhline(0.5, color="grey", linestyle="--")
+    ax.grid(True)
+    plt.savefig(dir)
+    plt.clf()
+
+def plot_coefs(non_zero_coefs, coef_order, dir):
+    _, ax = plt.subplots(figsize=(6, 8))
+    non_zero_coefs.loc[coef_order].plot.barh(ax=ax, legend=False)
+    ax.set_xlabel("coefficient")
+    ax.grid(True)
+    plt.savefig(dir)
+    plt.clf()
+    # plt.show()
+
+def plot_auc(va_times, cph_auc, dir):
+    plt.plot(va_times, cph_auc, marker="o")
+    plt.axhline(np.mean(cph_auc[~np.isnan(cph_auc)]), linestyle="--")
+
+    plt.xlabel("months from enrollment")
+    plt.ylabel("time-dependent AUC")
+    plt.grid(True)
+    plt.savefig(dir)
+    plt.clf()
+
+def evaluate_demographic_data(eval_model, survival_functions):
+    # Calculate MSE
+    demographic_df = eval_model.demographic_test
+    mse = mean_squared_error(demographic_df['PFS'], demographic_df['predicted_PFS'])
+    # TODO:: some kind of figure to plot the differences or something
+    for g in survival_functions:
+        color = plt.cm.prism(np.random.rand())  # Random color
+        plt.plot(g.x, g.y, color=color, alpha=0.5)
+
+        median_value = np.interp(0.5, g.y[::-1], g.x[::-1])
+        plt.plot(median_value, 0.5, 'x', color=color, alpha=0.8, markersize=10)
+    plt.title("Survival function of the patients")
+    plt.xlabel("Time")
+    plt.ylabel("Probability of survival")
+    plt.savefig(eval_model.name + "/survivalFunctions")
+    plt.clf()
+

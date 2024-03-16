@@ -6,4 +6,8 @@ from enum import Enum
 
 class LossType(Enum):
     MSE = 1
-    SPARSE = 2
+    SPARSE_L1 = 2
+    SPARSE_KL = 3
+
+    def __str__(self):
+        return str(self.name)
