@@ -16,8 +16,8 @@ import matplotlib.pyplot as plt
 
 import warnings
 from sklearn.exceptions import FitFailedWarning
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
+
+import seaborn as sns
 
 from sklearn.manifold import TSNE
 
@@ -317,16 +317,54 @@ def evaluate_demographic_data(eval_model, survival_functions):
     # Calculate MSE
     demographic_df = eval_model.demographic_test
     mse = mean_squared_error(demographic_df['PFS'], demographic_df['predicted_PFS'])
-    # TODO:: some kind of figure to plot the differences or something
+
+    # Set Seaborn style
+    sns.set_style("whitegrid")
+
+    plt.figure(figsize=(16, 12))
+
+    # AX 0, 0 :: Survival function
     for g in survival_functions:
-        color = plt.cm.prism(np.random.rand())  # Random color
-        plt.plot(g.x, g.y, color=color, alpha=0.5)
+        color = plt.cm.prism(np.random.rand())
+        plt.subplot(2, 2, 1)
+        plt.plot(g.x, g.y, color=color, alpha=0.3)
 
         median_value = np.interp(0.5, g.y[::-1], g.x[::-1])
-        plt.plot(median_value, 0.5, 'x', color=color, alpha=0.8, markersize=10)
-    plt.title("Survival function of the patients")
-    plt.xlabel("Time")
-    plt.ylabel("Probability of survival")
-    plt.savefig(eval_model.name + "/survivalFunctions")
-    plt.clf()
+        plt.plot(median_value, 0.5, 'x', color=color, alpha=0.5, markersize=10)
+        plt.title('Survival Function')
+        plt.xlabel('Time')
+        plt.ylabel('Survival Probability')
+
+    # AX 0, 1 :: Box plots
+    plt.subplot(2, 2, 2)
+    plt.boxplot([demographic_df['PFS'], demographic_df['predicted_PFS']], labels=['y', r'$\hat{y}$'])
+    plt.title('Box Plot')
+    plt.ylabel('Time')
+
+    # AX 1, 0 :: Residuals
+    residuals = demographic_df['PFS'] - demographic_df['predicted_PFS']
+    plt.subplot(2, 2, 3)
+    sns.histplot(residuals, bins=20, color='skyblue', alpha=0.7, kde=True)
+    plt.title('Histogram of Residuals')
+    plt.xlabel('Residuals')
+    plt.ylabel('Frequency')
+
+    # AX 1, 1 :: Actual vs predicted
+    indices = np.arange(len(demographic_df['PFS']))
+    bar_width = 0.4
+    plt.subplot(2, 2, 4)
+    plt.bar(indices, demographic_df['PFS'], bar_width, color='red', label='Actual', alpha=0.7)
+    plt.bar(indices + bar_width + 0.1, demographic_df['predicted_PFS'], bar_width, color='blue', label='Predicted', alpha=0.7)
+    plt.title('Actual vs Predicted')
+    plt.xlabel('Patient')
+    plt.ylabel('Time')
+    plt.legend()
+
+    plt.suptitle("MSE = " + str(round(mse, 2)), fontsize=16, fontweight='bold')
+
+    # Adjust layout to prevent overlap
+    plt.tight_layout()
+
+    plt.savefig(eval_model.name + "/prediction")
+
 
