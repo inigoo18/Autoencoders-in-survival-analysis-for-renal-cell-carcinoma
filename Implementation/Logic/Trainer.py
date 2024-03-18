@@ -30,10 +30,14 @@ class Trainer:
 
     def __init__(self, models: List[TrainingModel]):
         self.models = models # list of models
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        if (self.device == 'cuda'):
+            print("Notice: using GPU")
 
 
     def train(self, idx):
         tr_model = self.models[idx]
+        tr_model.model.to(self.device)
         tr_model.loss_fn.clear()
         best_validation_loss = float('inf')
         best_model_state = None
@@ -45,8 +49,8 @@ class Trainer:
             num_train_batches = len(tr_model.X_train)
             train_loss = 0.0
             for b in range(num_train_batches):
-                x_batch = torch.tensor(tr_model.X_train[b])
-                y_batch = torch.tensor(tr_model.y_train[b])
+                x_batch = torch.tensor(tr_model.X_train[b]).to(self.device)
+                y_batch = torch.tensor(tr_model.y_train[b]).to(self.device)
 
                 # In case we need to introduce noise to the training data
                 x_batch = tr_model.loss_fn.initialize_loss(x_batch)
@@ -76,8 +80,8 @@ class Trainer:
             tr_model.model.eval()
             num_val_batches = len(tr_model.X_val)
             for b in range(num_val_batches):
-                x_batch = torch.tensor(tr_model.X_train[b])
-                y_batch = torch.tensor(tr_model.y_train[b])
+                x_batch = torch.tensor(tr_model.X_train[b]).to(self.device)
+                y_batch = torch.tensor(tr_model.y_train[b]).to(self.device)
                 x_pred_batch = None
                 mu = None
                 log_var = None
@@ -127,8 +131,8 @@ class Trainer:
         latent_cols = ["Latent " + str(x) for x in list(range(eval_model.L))]
         latent_idxs = np.arange(eval_model.L)
 
-        latent_space_train = eval_model.model.get_latent_space(torch.tensor(eval_model.unroll_Xtrain())).detach().numpy()
-        latent_space_test = eval_model.model.get_latent_space(torch.tensor(eval_model.unroll_Xtest())).detach().numpy()
+        latent_space_train = eval_model.model.get_latent_space(torch.tensor(eval_model.unroll_Xtrain()).to(self.device)).detach().cpu().numpy()
+        latent_space_test = eval_model.model.get_latent_space(torch.tensor(eval_model.unroll_Xtest()).to(self.device)).detach().cpu().numpy()
 
         start = 0.00001
         stop = 0.1

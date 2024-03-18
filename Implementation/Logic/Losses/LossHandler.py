@@ -46,7 +46,9 @@ class LossHandler():
         :return: a variant of the input data
         '''
         if LossType.DENOISING in self.loss_types:
-            return x + self.args['noise_factor'] * torch.randn_like(x) # torch.randn follows gaussian distribution
+            noisy_data =  x + self.args['noise_factor'] * torch.randn_like(x) # torch.randn follows gaussian distribution
+            noisy_data = torch.clamp(noisy_data, min= 0, max = 1)
+            return noisy_data
         return x
 
     def _sparse_loss(self, params):

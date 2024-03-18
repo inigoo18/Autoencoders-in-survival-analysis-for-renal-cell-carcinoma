@@ -22,15 +22,15 @@ if __name__ == "__main__":
     L = 300
     #aeModel = AE(d.input_dim_train(), L)
 
-    losses = [LossType.VARIATIONAL]
-    loss_args = {'noise_factor': 0.5}#{'reg_param': 0.2, 'rho': 0.2}
+    losses = [LossType.DENOISING, LossType.SPARSE_KL]
+    loss_args = {'noise_factor': 0.05, 'reg_param': 0.1, 'rho': 0.2}
     loss_fn = LossHandler(losses, loss_args)
     aeModel = MWE_AE(d.input_dim_train(), L)
     vaeModel = VariationalExample(d.input_dim_train(), L)
-    aeModel = vaeModel
+    #aeModel = vaeModel
     optim = torch.optim.Adam(aeModel.parameters(), lr = 0.01)
-    instanceModel = TrainingModel("MWP_VARIATIONAL", d.X_train_batch, d.Y_train_batch, d.X_test_batch, d.Y_test_batch,
-                                  d.X_val_batch, d.Y_val_batch, d.Y_dataframe, aeModel, loss_fn, optim, 20, d.fetch_columns(), L)#, 'best_model_loss_1478.pth')
+    instanceModel = TrainingModel("TEST_DELETE", d.X_train_batch, d.Y_train_batch, d.X_test_batch, d.Y_test_batch,
+                                  d.X_val_batch, d.Y_val_batch, d.Y_dataframe, aeModel, loss_fn, optim, 6, d.fetch_columns(), L)#, 'best_model_loss_1478.pth')
 
     trainer = Trainer([instanceModel])
     trainer.trainAll()
