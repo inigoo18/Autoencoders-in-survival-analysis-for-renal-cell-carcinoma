@@ -250,11 +250,12 @@ def plot_tsne_coefs(data, names, dir):
 
 
 def plot_losses(epochs, data_tr, data_val, dir):
-    DEBUG = True
+    sns.set_style("whitegrid")
+
     OFFSET = 5
 
     combined_tr = [sum(values) for values in zip(*[data_tr[key] for key in data_tr.keys()])]
-    combined_val = [sum(values) for values in zip(*[data_val[key] for key in data_val.keys()])]
+    combined_val = data_val['MSE']
 
     epochs = epochs[OFFSET:]
     combined_tr = combined_tr[OFFSET:]
@@ -262,32 +263,48 @@ def plot_losses(epochs, data_tr, data_val, dir):
 
     bestVal = min(combined_val)
 
-    plt.figure(figsize=(10, 6))  # Set the figure size
+    offsetY = max(max(combined_tr), max(combined_val)) * 0.05
+    maxY = max(max(combined_tr), max(combined_val)) + offsetY
+    minY = 0
+
+    plt.figure(figsize=(10, 10))  # Set the figure size
+
+    # Train losses with different types of losses
+    plt.subplot(2, 1, 1)
 
     plt.plot(epochs, combined_tr, label="Train", marker='o', linestyle='-', color='#1f77b4', linewidth=2,
-             alpha=0.8)  # Customize train curve with softer blue color
-    plt.plot(epochs, combined_val, label="Val", marker='s', linestyle='-', color='#ff7f0e', linewidth=2, alpha=0.8)
-    plt.text(epochs[-1] + 0.15, combined_tr[-1], 'ALL', verticalalignment='center', fontsize=7)
-    plt.text(epochs[-1] + 0.15, combined_val[-1], 'ALL', verticalalignment='center', fontsize=7)
+             alpha=1)
 
-    if DEBUG:
-        for idx, key in enumerate(list(data_tr.keys())):
-            plt.plot(epochs, data_tr[key][OFFSET:], linestyle='--', color='#1f77b4', linewidth=2, alpha=0.35)
-            plt.text(epochs[-1] + 0.15, data_tr[key][-1], key, verticalalignment='center', fontsize=7, color='#1f77b4')
+    shades_blue = ['#6abf9e', '#1f77b4', '#2ca02c', '#002c5a']
+    for idx, key in enumerate(list(data_tr.keys())):
+        color = shades_blue[idx]
+        plt.plot(epochs, data_tr[key][OFFSET:], linestyle='--', color=color, label=key, linewidth=2, alpha=0.8)
 
-        for idx, key in enumerate(list(data_val.keys())):
-            plt.plot(epochs, data_val[key][OFFSET:], linestyle='--', color='#ff7f0e', linewidth=2, alpha=0.35)
-            plt.text(epochs[-1] + 0.15, data_val[key][-1], key, verticalalignment='center', fontsize=7, color='#ff7f0e')
+    plt.ylim(minY, maxY)
+    plt.title("Training (+ components) Loss Over Time", fontsize=16)
+    plt.xlabel("Epoch", fontsize=14)
+    plt.ylabel("Loss", fontsize=14)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+    plt.legend(fontsize=10)
+    plt.grid(True)
 
-    plt.axhline(bestVal, linestyle='-', color='#FF6961', linewidth=2, alpha=1)
+    # Validation losses with only MSE (the reconstruction loss)
+    plt.subplot(2, 1, 2)
+    plt.plot(epochs, combined_tr, label="Train", marker='o', linestyle='-', color='#1f77b4', linewidth=2,
+             alpha=.6)  # Customize train curve with softer blue color
+    plt.plot(epochs, combined_val, label="Val", marker='o', linestyle='-', color='#ff7f0e', linewidth=2, alpha=1)
+    plt.axhline(bestVal, linestyle='-',color='#FF6961', linewidth=2, alpha=.5)
+    plt.ylim(minY, maxY)
 
     plt.title("Training and Validation Loss Over Time", fontsize=16)
     plt.xlabel("Epoch", fontsize=14)
     plt.ylabel("Loss", fontsize=14)
     plt.xticks(fontsize=12)
     plt.yticks(fontsize=12)
-    plt.legend(fontsize=12)
+    plt.legend(fontsize=10)
     plt.grid(True)
+
     plt.tight_layout()
 
     plt.savefig(dir)

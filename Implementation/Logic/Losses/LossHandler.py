@@ -90,21 +90,23 @@ class LossHandler():
         total_loss = criterion(X, predX)
         self._add_loss(mode, 'MSE', total_loss)
 
-        if self.loss_type == LossType.SPARSE_L1:
-            sparse_loss = self._sparse_loss(params)
-            self._add_loss(mode, 'SPARSE_L1', sparse_loss * self.args['reg_param'])
-            total_loss += sparse_loss * self.args['reg_param']
+        # We're only interested in additional losses during training phase, when we learn the weights.
+        if mode == 'Train':
+            if self.loss_type == LossType.SPARSE_L1:
+                sparse_loss = self._sparse_loss(params)
+                self._add_loss(mode, 'SPARSE_L1', sparse_loss * self.args['reg_param'])
+                total_loss += sparse_loss * self.args['reg_param']
 
-        elif self.loss_type == LossType.SPARSE_KL:
-            sparse_kl_loss = self._sparse_kl_loss(self.args['rho'], params)
-            self._add_loss(mode, 'SPARSE_KL', sparse_kl_loss * self.args['reg_param'])
-            total_loss += sparse_kl_loss * self.args['reg_param']
+            elif self.loss_type == LossType.SPARSE_KL:
+                sparse_kl_loss = self._sparse_kl_loss(self.args['rho'], params)
+                self._add_loss(mode, 'SPARSE_KL', sparse_kl_loss * self.args['reg_param'])
+                total_loss += sparse_kl_loss * self.args['reg_param']
 
-        elif self.loss_type == LossType.VARIATIONAL:
-            variational_kl_loss = -0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp())
+            elif self.loss_type == LossType.VARIATIONAL:
+                variational_kl_loss = -0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp())
 
-            self._add_loss(mode, 'VARIATIONAL', variational_kl_loss)
-            total_loss += variational_kl_loss
+                self._add_loss(mode, 'VARIATIONAL', variational_kl_loss)
+                total_loss += variational_kl_loss
 
 
 
