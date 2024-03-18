@@ -8,6 +8,7 @@ from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import KFold, GridSearchCV
 from sksurv.linear_model import CoxnetSurvivalAnalysis
 from sksurv.metrics import cumulative_dynamic_auc, as_concordance_index_ipcw_scorer
+from torch.optim.lr_scheduler import StepLR
 
 from Logic.TrainingModel import TrainingModel
 import numpy as np
@@ -44,6 +45,8 @@ class Trainer:
         best_epoch = -1
         tr_losses = []
         val_losses = []
+        scheduler = StepLR(tr_model.optim, step_size=tr_model.epochs // 3, gamma=0.1)
+
         for t in range(tr_model.epochs + 1):
             tr_model.model.train()
             num_train_batches = len(tr_model.X_train)
@@ -72,28 +75,30 @@ class Trainer:
                 # Zero gradients, backward pass, and update parameters
                 tr_model.optim.zero_grad()
                 loss.backward()
-
                 tr_model.optim.step()
-
 
             valid_loss = 0.0
             tr_model.model.eval()
             num_val_batches = len(tr_model.X_val)
-            for b in range(num_val_batches):
-                x_batch = torch.tensor(tr_model.X_train[b]).to(self.device)
-                y_batch = torch.tensor(tr_model.y_train[b]).to(self.device)
-                x_pred_batch = None
-                mu = None
-                log_var = None
-                # Perform forward pass
-                if (tr_model.variational):
-                    x_pred_batch, mu, log_var = tr_model.model.forward(x_batch)
-                else:
-                    x_pred_batch = tr_model.model.forward(x_batch)
+            with torch.no_grad():
+                for b in range(num_val_batches):
+                    x_batch = torch.tensor(tr_model.X_train[b]).to(self.device)
+                    y_batch = torch.tensor(tr_model.y_train[b]).to(self.device)
+                    x_pred_batch = None
+                    mu = None
+                    log_var = None
+                    # Perform forward pass
+                    if (tr_model.variational):
+                        x_pred_batch, mu, log_var = tr_model.model.forward(x_batch)
+                    else:
+                        x_pred_batch = tr_model.model.forward(x_batch)
 
-                # Compute loss for the entire batch
-                loss = tr_model.compute_model_loss(x_pred_batch, x_batch, mu, log_var)
-                valid_loss += loss.item()
+                    # Compute loss for the entire batch
+                    loss = tr_model.compute_model_loss(x_pred_batch, x_batch, mu, log_var)
+                    valid_loss += loss.item()
+
+            # call scheduler (+optimizer) after training and validation epoch
+            scheduler.step()
 
             avg_train_loss = train_loss / num_train_batches
             avg_valid_loss = valid_loss / num_val_batches
@@ -136,7 +141,7 @@ class Trainer:
 
         start = 0.00001
         stop = 0.1
-        step = 0.00005
+        step = 0.00002
         estimated_alphas = np.arange(start, stop + step, step)
 
         # we remove warnings when coefficients in Cox PH model are 0

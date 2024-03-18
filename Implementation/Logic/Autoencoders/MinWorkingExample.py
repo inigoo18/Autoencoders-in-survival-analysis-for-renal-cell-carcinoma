@@ -1,7 +1,6 @@
 from typing import Type
 
 import torch
-import math
 
 
 class MWE_AE(torch.nn.Module):
@@ -11,56 +10,29 @@ class MWE_AE(torch.nn.Module):
 
         print("Initializing Minimal Working Example AE with input dim: ", input_dim)
 
-
         self.encoder = torch.nn.Sequential(
-            torch.nn.Linear(input_dim, 2500),
-            torch.nn.BatchNorm1d(2500),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.1),
-            torch.nn.Linear(2500,2000),
-            torch.nn.BatchNorm1d(2000),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.1),
-            torch.nn.Linear(2000, 1500),
-            torch.nn.BatchNorm1d(1500),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.1),
-            torch.nn.Linear(1500,1000),
-            torch.nn.BatchNorm1d(1000),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.1),
-            torch.nn.Linear(1000,500),
-            torch.nn.BatchNorm1d(500),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.1),
-            torch.nn.Linear(500,L),
-            torch.nn.BatchNorm1d(L),
+            custom_block(input_dim, 3000),
+            custom_block(3000, 2500),
+            custom_block(2500, 2000),
+            custom_block(2000, 1500),
+            custom_block(1500, 1200),
+            custom_block(1200, 1000),
+            custom_block(1000, 800),
+            custom_block(800, 600),
+            custom_block(600, L),
             torch.nn.Sigmoid()
         )
 
         self.decoder = torch.nn.Sequential(
-            torch.nn.Linear(L,500),
-            torch.nn.BatchNorm1d(500),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.1),
-            torch.nn.Linear(500,1000),
-            torch.nn.BatchNorm1d(1000),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.1),
-            torch.nn.Linear(1000, 1500),
-            torch.nn.BatchNorm1d(1500),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.1),
-            torch.nn.Linear(1500,2000),
-            torch.nn.BatchNorm1d(2000),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.1),
-            torch.nn.Linear(2000,2500),
-            torch.nn.BatchNorm1d(2500),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.1),
-            torch.nn.Linear(2500, input_dim),
-            torch.nn.BatchNorm1d(input_dim),
+            custom_block(L, 600),
+            custom_block(600, 800),
+            custom_block(800, 1000),
+            custom_block(1000, 1200),
+            custom_block(1200, 1500),
+            custom_block(1500, 2000),
+            custom_block(2000, 2500),
+            custom_block(2500, 3000),
+            custom_block(3000, input_dim),
             torch.nn.Sigmoid()
         )
 
@@ -72,3 +44,12 @@ class MWE_AE(torch.nn.Module):
 
     def get_latent_space(self, x):
         return self.encoder(x)
+
+
+def custom_block(input_dim, output_dim, dropout_rate=0.1):
+    return torch.nn.Sequential(
+        torch.nn.Linear(input_dim, output_dim),
+        torch.nn.BatchNorm1d(output_dim),
+        torch.nn.PReLU(),
+        torch.nn.Dropout(dropout_rate)
+    )

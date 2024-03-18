@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     torch.manual_seed(42)
     np.random.seed(42)
-    L = 300
+    L = 512
     #aeModel = AE(d.input_dim_train(), L)
 
     losses = [LossType.DENOISING, LossType.SPARSE_KL]
@@ -28,9 +28,9 @@ if __name__ == "__main__":
     aeModel = MWE_AE(d.input_dim_train(), L)
     vaeModel = VariationalExample(d.input_dim_train(), L)
     #aeModel = vaeModel
-    optim = torch.optim.Adam(aeModel.parameters(), lr = 0.01)
-    instanceModel = TrainingModel("TEST_DELETE", d.X_train_batch, d.Y_train_batch, d.X_test_batch, d.Y_test_batch,
-                                  d.X_val_batch, d.Y_val_batch, d.Y_dataframe, aeModel, loss_fn, optim, 6, d.fetch_columns(), L)#, 'best_model_loss_1478.pth')
+    optim = torch.optim.Adam(aeModel.parameters(), lr = 0.1)
+    instanceModel = TrainingModel("MWP_DENOISE+SPARSE", d.X_train_batch, d.Y_train_batch, d.X_test_batch, d.Y_test_batch,
+                                  d.X_val_batch, d.Y_val_batch, d.Y_dataframe, aeModel, loss_fn, optim, 100, d.fetch_columns(), L)#, 'best_model_loss_1478.pth')
 
     trainer = Trainer([instanceModel])
     trainer.trainAll()
