@@ -9,26 +9,27 @@ from Logic.Losses.LossType import LossType
 
 class LossHandler():
 
-    def __init__(self, loss_type, args):
-        self.loss_type = loss_type
+    def __init__(self, loss_types, args):
+        self.loss_types = loss_types
         self.args = args
         self.loss_dict_tr = {}  # here we keep count of the different losses we have
         self.loss_dict_val = {}
         self.loss_dict_tr['MSE'] = []
         self.loss_dict_val['MSE'] = []
-        if loss_type != LossType.MSE and loss_type != LossType.DENOISING:
-            self.loss_dict_tr[str(loss_type)] = []
-            self.loss_dict_val[str(loss_type)] = []
+        for loss_type in loss_types:
+            if loss_type != LossType.MSE and loss_type != LossType.DENOISING:
+                self.loss_dict_tr[str(loss_type)] = []
+                self.loss_dict_val[str(loss_type)] = []
         self.check_arguments()
 
     def check_arguments(self):
         keys = []
-        if self.loss_type == LossType.SPARSE_L1:
-            keys = ['reg_param']
-        elif self.loss_type == LossType.SPARSE_KL:
-            keys = ['reg_param', 'rho']
-        elif self.loss_type == LossType.DENOISING:
-            keys = ['noise_factor']
+        if LossType.SPARSE_L1 in self.loss_types:
+            keys += ['reg_param']
+        elif LossType.SPARSE_KL in self.loss_types:
+            keys += ['reg_param', 'rho']
+        elif LossType.DENOISING in self.loss_types:
+            keys += ['noise_factor']
 
         if not (all(key in self.args for key in keys)):
             print("ERROR :: a loss type was specified but the required arguments aren't")
@@ -44,7 +45,7 @@ class LossHandler():
         :param x: input data
         :return: a variant of the input data
         '''
-        if self.loss_type == LossType.DENOISING:
+        if LossType.DENOISING in self.loss_types:
             return x + self.args['noise_factor'] * torch.randn_like(x) # torch.randn follows gaussian distribution
         return x
 
@@ -92,25 +93,23 @@ class LossHandler():
 
         # We're only interested in additional losses during training phase, when we learn the weights.
         if mode == 'Train':
-            if self.loss_type == LossType.SPARSE_L1:
+            if LossType.SPARSE_L1 in self.loss_types:
                 sparse_loss = self._sparse_loss(params)
                 self._add_loss(mode, 'SPARSE_L1', sparse_loss * self.args['reg_param'])
                 total_loss += sparse_loss * self.args['reg_param']
 
-            elif self.loss_type == LossType.SPARSE_KL:
+            elif LossType.SPARSE_KL in self.loss_types:
                 sparse_kl_loss = self._sparse_kl_loss(self.args['rho'], params)
                 self._add_loss(mode, 'SPARSE_KL', sparse_kl_loss * self.args['reg_param'])
                 total_loss += sparse_kl_loss * self.args['reg_param']
 
-            elif self.loss_type == LossType.VARIATIONAL:
+            elif LossType.VARIATIONAL in self.loss_types:
                 variational_kl_loss = -0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp())
-
                 self._add_loss(mode, 'VARIATIONAL', variational_kl_loss)
                 total_loss += variational_kl_loss
 
-
-
         return total_loss
+
 
     def process_batch(self, tr_batch_size, val_batch_size):
         keys = list(self.loss_dict_tr.keys())

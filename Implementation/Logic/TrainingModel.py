@@ -30,7 +30,7 @@ class TrainingModel():
         self.L = L
         self.trained = False
         self.variational = False
-        if loss_fn.loss_type == LossType.VARIATIONAL:
+        if LossType.VARIATIONAL in loss_fn.loss_types:
             self.variational = True
         if not os.path.exists(name):
             os.makedirs(name)

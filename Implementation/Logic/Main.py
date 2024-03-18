@@ -22,8 +22,9 @@ if __name__ == "__main__":
     L = 300
     #aeModel = AE(d.input_dim_train(), L)
 
+    losses = [LossType.VARIATIONAL]
     loss_args = {'noise_factor': 0.5}#{'reg_param': 0.2, 'rho': 0.2}
-    loss_fn = LossHandler(LossType.VARIATIONAL, loss_args)
+    loss_fn = LossHandler(losses, loss_args)
     aeModel = MWE_AE(d.input_dim_train(), L)
     vaeModel = VariationalExample(d.input_dim_train(), L)
     aeModel = vaeModel

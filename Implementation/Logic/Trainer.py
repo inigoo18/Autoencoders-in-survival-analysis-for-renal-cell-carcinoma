@@ -59,7 +59,6 @@ class Trainer:
                     x_pred_batch, mu, log_var = tr_model.model.forward(x_batch)
                 else:
                     x_pred_batch = tr_model.model.forward(x_batch)
-
                 # Compute loss for the entire batch
                 loss = tr_model.compute_model_loss(x_pred_batch, x_batch, mu, log_var)
 
@@ -206,7 +205,6 @@ class Trainer:
             predicted_times += [median_value]
 
         eval_model.demographic_test['predicted_PFS'] = predicted_times
-        eval_model.demographic_test.to_csv('predictions_test.csv', index=True)
 
         evaluate_demographic_data(eval_model, survival_functions)
 
