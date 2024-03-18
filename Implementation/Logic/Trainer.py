@@ -48,6 +48,9 @@ class Trainer:
                 x_batch = torch.tensor(tr_model.X_train[b])
                 y_batch = torch.tensor(tr_model.y_train[b])
 
+                # In case we need to introduce noise to the training data
+                x_batch = tr_model.loss_fn.initialize_loss(x_batch)
+
                 # Perform forward pass
                 x_pred_batch = tr_model.model.forward(x_batch)
 

@@ -66,6 +66,7 @@ class MWE_AE(torch.nn.Module):
 
     def forward(self, x):
         encoded = self.encoder(x)
+
         decoded = self.decoder(encoded)
         return decoded
 

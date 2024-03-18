@@ -16,28 +16,47 @@ class LossHandler():
         self.loss_dict_val = {}
         self.loss_dict_tr['MSE'] = []
         self.loss_dict_val['MSE'] = []
-        if loss_type != LossType.MSE:
+        if loss_type != LossType.MSE and loss_type != LossType.DENOISING:
             self.loss_dict_tr[str(loss_type)] = []
             self.loss_dict_val[str(loss_type)] = []
         self.check_arguments()
 
     def check_arguments(self):
+        keys = []
         if self.loss_type == LossType.SPARSE_L1:
             keys = ['reg_param']
         elif self.loss_type == LossType.SPARSE_KL:
             keys = ['reg_param', 'rho']
+        elif self.loss_type == LossType.DENOISING:
+            keys = ['noise_factor']
 
         if not (all(key in self.args for key in keys)):
-            print("ERROR :: a loss type was specified but the required arguments haven't")
+            print("ERROR :: a loss type was specified but the required arguments aren't")
 
 
     def clear(self):
         self.loss_dict = {}
 
+    def initialize_loss(self, x):
+        '''
+        This function takes the data and does something to it depending on the loss type we selected.
+        Mainly so that if we selected a denoising autoencoder, we can add some noise to the data
+        :param x: input data
+        :return: a variant of the input data
+        '''
+        if self.loss_type == LossType.DENOISING:
+            return x + self.args['noise_factor'] * torch.randn_like(x) # torch.randn follows gaussian distribution
+        return x
+
     def _sparse_loss(self, params):
+        '''
+        Loss function used for L1 sparsity, it just sums all the parameters together after taking the absolute value
+        :param params: argument list defined in LossHandler class
+        :return: total loss
+        '''
         return sum([p.abs().sum() for p in params])
 
-    def _kl_loss(self, RHO, params):
+    def _sparse_kl_loss(self, RHO, params):
         '''
         The idea of this loss function is that we have two probabilities, RHO and RHO_HAT.
         RHO is the parameter we choose to regularize the autoencoder with, for example if we set it to 0.1, we
@@ -77,9 +96,10 @@ class LossHandler():
             total_loss += sparse_loss * self.args['reg_param']
 
         elif self.loss_type == LossType.SPARSE_KL:
-            kl_loss = self._kl_loss(self.args['rho'], params)
-            self._add_loss(mode, 'SPARSE_KL', kl_loss * self.args['reg_param'])
-            total_loss += kl_loss * self.args['reg_param']
+            sparse_kl_loss = self._sparse_kl_loss(self.args['rho'], params)
+            self._add_loss(mode, 'SPARSE_KL', sparse_kl_loss * self.args['reg_param'])
+            total_loss += sparse_kl_loss * self.args['reg_param']
+
 
         return total_loss
 

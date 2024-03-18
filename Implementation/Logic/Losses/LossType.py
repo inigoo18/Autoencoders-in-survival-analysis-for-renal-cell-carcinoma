@@ -8,6 +8,7 @@ class LossType(Enum):
     MSE = 1
     SPARSE_L1 = 2
     SPARSE_KL = 3
+    DENOISING = 4
 
     def __str__(self):
         return str(self.name)
