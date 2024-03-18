@@ -51,11 +51,17 @@ class Trainer:
                 # In case we need to introduce noise to the training data
                 x_batch = tr_model.loss_fn.initialize_loss(x_batch)
 
+                x_pred_batch = None
+                mu = None
+                log_var = None
                 # Perform forward pass
-                x_pred_batch = tr_model.model.forward(x_batch)
+                if (tr_model.variational):
+                    x_pred_batch, mu, log_var = tr_model.model.forward(x_batch)
+                else:
+                    x_pred_batch = tr_model.model.forward(x_batch)
 
                 # Compute loss for the entire batch
-                loss = tr_model.compute_model_loss(x_pred_batch, x_batch)
+                loss = tr_model.compute_model_loss(x_pred_batch, x_batch, mu, log_var)
 
                 # Accumulate loss for the epoch
                 train_loss += loss.item()
@@ -73,8 +79,17 @@ class Trainer:
             for b in range(num_val_batches):
                 x_batch = torch.tensor(tr_model.X_train[b])
                 y_batch = torch.tensor(tr_model.y_train[b])
-                x_pred_batch = tr_model.model.forward(x_batch)
-                loss = tr_model.compute_model_loss(x_pred_batch, x_batch)
+                x_pred_batch = None
+                mu = None
+                log_var = None
+                # Perform forward pass
+                if (tr_model.variational):
+                    x_pred_batch, mu, log_var = tr_model.model.forward(x_batch)
+                else:
+                    x_pred_batch = tr_model.model.forward(x_batch)
+
+                # Compute loss for the entire batch
+                loss = tr_model.compute_model_loss(x_pred_batch, x_batch, mu, log_var)
                 valid_loss += loss.item()
 
             avg_train_loss = train_loss / num_train_batches
@@ -140,11 +155,6 @@ class Trainer:
         mean = cv_results.mean_test_score
         std = cv_results.std_test_score
 
-        print("Alphas: ")
-        print(estimated_alphas)
-        print("Mean:")
-        print(mean)
-
         best_model = gcv.best_estimator_.estimator
         best_coefs = pd.DataFrame(best_model.coef_, index=latent_cols, columns=["coefficient"])
         best_alpha = gcv.best_params_["estimator__alphas"][0]
@@ -199,7 +209,6 @@ class Trainer:
         eval_model.demographic_test.to_csv('predictions_test.csv', index=True)
 
         evaluate_demographic_data(eval_model, survival_functions)
-
 
         print("Finished")
 

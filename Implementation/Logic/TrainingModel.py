@@ -7,6 +7,7 @@ import numpy as np
 import os
 
 from Logic.Losses.LossHandler import LossHandler
+from Logic.Losses.LossType import LossType
 
 
 class TrainingModel():
@@ -28,9 +29,12 @@ class TrainingModel():
         self.columns = columns
         self.L = L
         self.trained = False
+        self.variational = False
+        if loss_fn.loss_type == LossType.VARIATIONAL:
+            self.variational = True
         if not os.path.exists(name):
             os.makedirs(name)
-        if load_state != None:
+        if load_state is not None:
             self.model.load_state_dict(torch.load(load_state))
             self.trained = True
 
@@ -55,11 +59,11 @@ class TrainingModel():
         flattened_data = [tuple(item) for sublist in self.y_val for item in sublist]
         return np.array(flattened_data, dtype=[('event', bool), ('time', float)])
 
-    def compute_model_loss(self, X, predX):
+    def compute_model_loss(self, X, predX, mu = None, log_var = None):
         mode = 'Val'
         if self.model.training:
             mode = 'Train'
-        return self.loss_fn.compute_loss(mode, X, predX, self.model.parameters())
+        return self.loss_fn.compute_loss(mode, X, predX, self.model.parameters(), mu, log_var)
 
     def fetch_model_loss(self):
         loss_dict = self.loss_fn.loss_dict

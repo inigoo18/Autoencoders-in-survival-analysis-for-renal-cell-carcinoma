@@ -84,7 +84,7 @@ class LossHandler():
             self.loss_dict_val[name] += [val.item()]
 
 
-    def compute_loss(self, mode, X, predX, params = None):
+    def compute_loss(self, mode, X, predX, params = None, mean = None, log_var = None):
         criterion = nn.MSELoss(reduction='sum')
 
         total_loss = criterion(X, predX)
@@ -99,6 +99,13 @@ class LossHandler():
             sparse_kl_loss = self._sparse_kl_loss(self.args['rho'], params)
             self._add_loss(mode, 'SPARSE_KL', sparse_kl_loss * self.args['reg_param'])
             total_loss += sparse_kl_loss * self.args['reg_param']
+
+        elif self.loss_type == LossType.VARIATIONAL:
+            variational_kl_loss = -0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp())
+
+            self._add_loss(mode, 'VARIATIONAL', variational_kl_loss)
+            total_loss += variational_kl_loss
+
 
 
         return total_loss

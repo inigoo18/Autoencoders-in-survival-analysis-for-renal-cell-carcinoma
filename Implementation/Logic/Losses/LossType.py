@@ -9,6 +9,7 @@ class LossType(Enum):
     SPARSE_L1 = 2
     SPARSE_KL = 3
     DENOISING = 4
+    VARIATIONAL = 5
 
     def __str__(self):
         return str(self.name)
