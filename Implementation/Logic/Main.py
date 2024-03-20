@@ -21,7 +21,7 @@ if __name__ == "__main__":
 
     torch.manual_seed(42)
     np.random.seed(42)
-    L = 512
+    L = 256
     #aeModel = AE(d.input_dim_train(), L)
 
     losses = [LossType.DENOISING, LossType.SPARSE_KL, LossType.VARIATIONAL]
@@ -35,13 +35,15 @@ if __name__ == "__main__":
 
     combinations += [losses]
 
-    loss_args = {'noise_factor': 0.05, 'reg_param': 0.1, 'rho': 0.2}
+    loss_args = {'noise_factor': 0.1, 'reg_param': 0.15, 'rho': 0.01}
 
     instanceModels = []
 
+    #combinations = [[LossType.DENOISING, LossType.SPARSE_KL, LossType.VARIATIONAL]]
+
     for comb in combinations:
         print(comb)
-        title = "RESULT_"+'+'.join(str(loss.name) for loss in comb)
+        title = "RESULT_L_"+str(L)+ "_" + '+'.join(str(loss.name) for loss in comb)
         loss_fn = LossHandler(comb, loss_args)
         aeModel = MWE_AE(d.input_dim_train(), L)
         vaeModel = VariationalExample(d.input_dim_train(), L)
@@ -49,7 +51,7 @@ if __name__ == "__main__":
             aeModel = vaeModel
         optim = torch.optim.Adam(aeModel.parameters(), lr = 0.1)
         instanceModel = TrainingModel(title, d.X_train_batch, d.Y_train_batch, d.X_test_batch, d.Y_test_batch,
-                                  d.X_val_batch, d.Y_val_batch, d.Y_dataframe, aeModel, loss_fn, optim, 100, BATCH_SIZE, d.fetch_columns(), L)#, 'best_model_loss_1478.pth')
+                                  d.X_val_batch, d.Y_val_batch, d.Y_dataframe, aeModel, loss_fn, optim, 150, BATCH_SIZE, d.fetch_columns(), L)#, 'best_model_loss_1478.pth')
         instanceModels += [instanceModel]
 
 

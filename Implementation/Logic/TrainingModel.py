@@ -33,8 +33,8 @@ class TrainingModel():
         self.variational = False
         if LossType.VARIATIONAL in loss_fn.loss_types:
             self.variational = True
-        if not os.path.exists(name):
-            os.makedirs(name)
+        if not os.path.exists("Results/"+name):
+            os.makedirs("Results/"+name)
         if load_state is not None:
             self.model.load_state_dict(torch.load(load_state))
             self.trained = True

@@ -45,7 +45,7 @@ class Trainer:
         best_epoch = -1
         tr_losses = []
         val_losses = []
-        scheduler = StepLR(tr_model.optim, step_size=tr_model.epochs // 3, gamma=0.1)
+        scheduler = StepLR(tr_model.optim, step_size=tr_model.epochs // 3, gamma=0.5)
 
         for t in range(tr_model.epochs + 1):
             tr_model.model.train()
@@ -147,9 +147,9 @@ class Trainer:
         latent_space_train = eval_model.model.get_latent_space(torch.tensor(eval_model.unroll_Xtrain()).to(self.device)).detach().cpu().numpy()
         latent_space_test = eval_model.model.get_latent_space(torch.tensor(eval_model.unroll_Xtest()).to(self.device)).detach().cpu().numpy()
 
-        start = 0.00001
-        stop = 0.1
-        step = 0.00003
+        start = 0.000001
+        stop = 0.01
+        step = 0.000003
         estimated_alphas = np.arange(start, stop + step, step)
 
         # we remove warnings when coefficients in Cox PH model are 0
@@ -257,7 +257,7 @@ def plot_tsne_coefs(data, names, dir):
     # plt.legend(loc='best', fontsize=10)
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig(dir)
+    plt.savefig("Results/"+dir)
     plt.clf()
     #plt.show()
 
@@ -321,7 +321,7 @@ def plot_losses(epochs, data_tr, data_val, dir):
 
     plt.tight_layout()
 
-    plt.savefig(dir)
+    plt.savefig("Results/"+dir)
     plt.clf()
 
 def plot_cindex(alphas, mean, std, best_alpha, dir):
@@ -334,7 +334,7 @@ def plot_cindex(alphas, mean, std, best_alpha, dir):
     ax.axvline(best_alpha, c="C1")
     ax.axhline(0.5, color="grey", linestyle="--")
     ax.grid(True)
-    plt.savefig(dir)
+    plt.savefig("Results/"+dir)
     plt.clf()
 
 def plot_coefs(non_zero_coefs, coef_order, dir):
@@ -342,7 +342,7 @@ def plot_coefs(non_zero_coefs, coef_order, dir):
     non_zero_coefs.loc[coef_order].plot.barh(ax=ax, legend=False)
     ax.set_xlabel("coefficient")
     ax.grid(True)
-    plt.savefig(dir)
+    plt.savefig("Results/"+dir)
     plt.clf()
     # plt.show()
 
@@ -353,7 +353,7 @@ def plot_auc(va_times, cph_auc, dir):
     plt.xlabel("months from enrollment")
     plt.ylabel("time-dependent AUC")
     plt.grid(True)
-    plt.savefig(dir)
+    plt.savefig("Results/"+dir)
     plt.clf()
 
 def evaluate_demographic_data(eval_model, survival_functions):
@@ -408,6 +408,6 @@ def evaluate_demographic_data(eval_model, survival_functions):
     # Adjust layout to prevent overlap
     plt.tight_layout()
 
-    plt.savefig(eval_model.name + "/prediction")
+    plt.savefig("Results/"+eval_model.name + "/prediction")
 
 

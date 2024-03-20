@@ -19,12 +19,16 @@ class MWE_AE(torch.nn.Module):
             custom_block(1200, 1000),
             custom_block(1000, 800),
             custom_block(800, 600),
-            custom_block(600, L),
+            custom_block(600, 400),
+            custom_block(400, 300),
+            custom_block(300, L),
             torch.nn.Sigmoid()
         )
 
         self.decoder = torch.nn.Sequential(
-            custom_block(L, 600),
+            custom_block(L, 300),
+            custom_block(300, 400),
+            custom_block(400, 600),
             custom_block(600, 800),
             custom_block(800, 1000),
             custom_block(1000, 1200),
