@@ -21,14 +21,15 @@ class LossHandler():
                 self.loss_dict_tr[str(loss_type)] = []
                 self.loss_dict_val[str(loss_type)] = []
         self.check_arguments()
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     def check_arguments(self):
         keys = []
         if LossType.SPARSE_L1 in self.loss_types:
             keys += ['reg_param']
-        elif LossType.SPARSE_KL in self.loss_types:
+        if LossType.SPARSE_KL in self.loss_types:
             keys += ['reg_param', 'rho']
-        elif LossType.DENOISING in self.loss_types:
+        if LossType.DENOISING in self.loss_types:
             keys += ['noise_factor']
 
         if not (all(key in self.args for key in keys)):
@@ -72,11 +73,12 @@ class LossHandler():
         '''
         TOTAL = 0
         for p in params:
-            RHO_HAT = torch.mean(F.tanh(p.abs()))
+            p = p.to(self.device)
+            RHO_HAT = torch.mean(F.tanh(p.abs())).to(self.device)
             if RHO_HAT == 0: # if the param is 0, we add a little bit so that the calculation doesn't fail
                 RHO_HAT += 0.001
 
-            RES = torch.tanh((RHO * torch.log(RHO / RHO_HAT) + (1 - RHO) * torch.log((1 - RHO) / (1 - RHO_HAT))).abs())
+            RES = torch.tanh((RHO * torch.log(RHO / RHO_HAT) + (1 - RHO) * torch.log((1 - RHO) / (1 - RHO_HAT))).abs()).to(self.device)
             TOTAL += RES * len(p) # we multiply by p so we can give some weight depending on how many neurons
         return TOTAL
 
@@ -100,12 +102,12 @@ class LossHandler():
                 self._add_loss(mode, 'SPARSE_L1', sparse_loss * self.args['reg_param'])
                 total_loss += sparse_loss * self.args['reg_param']
 
-            elif LossType.SPARSE_KL in self.loss_types:
+            if LossType.SPARSE_KL in self.loss_types:
                 sparse_kl_loss = self._sparse_kl_loss(self.args['rho'], params)
                 self._add_loss(mode, 'SPARSE_KL', sparse_kl_loss * self.args['reg_param'])
                 total_loss += sparse_kl_loss * self.args['reg_param']
 
-            elif LossType.VARIATIONAL in self.loss_types:
+            if LossType.VARIATIONAL in self.loss_types:
                 variational_kl_loss = -0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp())
                 self._add_loss(mode, 'VARIATIONAL', variational_kl_loss)
                 total_loss += variational_kl_loss
@@ -118,7 +120,8 @@ class LossHandler():
 
         tr_dict = {}
         val_dict = {}
-
+        # In loss_dict_tr we have losses per batch. What we do is grab the mean of the whole group and have that as the
+        # loss obtained in the epoch.
         for key in keys:
             tr_dict[key] = np.mean(np.array(self.loss_dict_tr[key]).reshape(-1, tr_batch_size), axis = 1).tolist()
             val_dict[key] = np.mean(np.array(self.loss_dict_val[key]).reshape(-1, val_batch_size), axis=1).tolist()

@@ -10,7 +10,7 @@ class TabularDataLoader:
     Class that holds the DataFrame where the tabular data is located.
     """
 
-    def __init__(self, file_path, pred_vars, test_ratio, val_ratio):
+    def __init__(self, file_path, pred_vars, test_ratio, val_ratio, batch_size):
         # Load file and convert into float32 since model parameters initialized w/ Pytorch are in float32
         dataframe = pd.read_csv(file_path, sep=',', index_col=0).astype('float32')
         self.dataframe = dataframe
@@ -31,7 +31,7 @@ class TabularDataLoader:
         self.Y_dataframe = test_set
 
         #self._normalize_data()
-        self._create_batches(64)
+        self._create_batches(batch_size)
 
     def describe_dataframe(self):
         return self.dataframe.describe()

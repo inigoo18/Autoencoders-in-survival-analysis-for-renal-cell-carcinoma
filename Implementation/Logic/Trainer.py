@@ -82,8 +82,9 @@ class Trainer:
             num_val_batches = len(tr_model.X_val)
             with torch.no_grad():
                 for b in range(num_val_batches):
-                    x_batch = torch.tensor(tr_model.X_train[b]).to(self.device)
-                    y_batch = torch.tensor(tr_model.y_train[b]).to(self.device)
+                    # TODO :: we were supposed to use the VAL data!!! Check any mistakes
+                    x_batch = torch.tensor(tr_model.X_val[b]).to(self.device)
+                    y_batch = torch.tensor(tr_model.y_val[b]).to(self.device)
                     x_pred_batch = None
                     mu = None
                     log_var = None
@@ -99,9 +100,15 @@ class Trainer:
 
             # call scheduler (+optimizer) after training and validation epoch
             scheduler.step()
+            # TODO :: some batches may not be full. We need to account for that. Check that this works
+            # A way to do this is:
+            # length of elements / 64
+            # divided by
+            # number of batches / 64
+            tr_len, val_len = tr_model.fetch_train_val_total_length()
 
-            avg_train_loss = train_loss / num_train_batches
-            avg_valid_loss = valid_loss / num_val_batches
+            avg_train_loss = train_loss / (tr_len / tr_model.BATCH_SIZE)
+            avg_valid_loss = valid_loss / (val_len / tr_model.BATCH_SIZE)
             tr_losses += [avg_train_loss]
             val_losses += [avg_valid_loss]
 
@@ -117,7 +124,7 @@ class Trainer:
                 best_model_state = tr_model.model.state_dict()
                 best_epoch = t
 
-        torch.save(best_model_state, 'best_model_loss_' + str(round(best_validation_loss)) + '.pth')
+        torch.save(best_model_state, 'model_loss' + str(tr_model.name) + "_" + str(round(best_validation_loss)) + '.pth')
         tr_model.model.load_state_dict(best_model_state)
 
         print("Loading model with best loss", best_validation_loss, "found in Epoch", best_epoch)
@@ -127,6 +134,7 @@ class Trainer:
     def trainAll(self):
         for idx in range(len(self.models)):
             if not self.models[idx].trained:
+                print("Training model: " + str(self.models[idx].name + " with losses: "+ str(self.models[idx].loss_fn.loss_types)))
                 self.train(idx)
 
     def evaluate(self, idx):
@@ -141,7 +149,7 @@ class Trainer:
 
         start = 0.00001
         stop = 0.1
-        step = 0.00002
+        step = 0.00003
         estimated_alphas = np.arange(start, stop + step, step)
 
         # we remove warnings when coefficients in Cox PH model are 0
@@ -190,11 +198,10 @@ class Trainer:
             if col in list(coef_order):
                 idxs_interest += [idx]
 
-        data_coefs = [x for idx in idxs_interest for x in [latent_space_train[idx]]]
-        data_coefs = [list(values) for values in zip(*data_coefs)]
+        data_points = latent_space_train[:, idxs_interest]
 
         if non_zero >= 2:
-            plot_tsne_coefs(data_coefs, cols_interest, eval_model.name + "/tsne")
+            plot_tsne_coefs(data_points, cols_interest, eval_model.name + "/tsne")
 
         # Predict using the best model and the test latent space
         cph_risk_scores = best_model.predict(latent_space_test, alpha = best_alpha)

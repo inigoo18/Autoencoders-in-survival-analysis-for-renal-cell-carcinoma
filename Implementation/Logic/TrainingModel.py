@@ -12,7 +12,7 @@ from Logic.Losses.LossType import LossType
 
 class TrainingModel():
     def __init__(self, name, X_train, y_train, X_test, y_test, X_val, y_val, demographic_test, model : torch.nn.Module,
-                 loss_fn : LossHandler, optim: Type[torch.optim.Optimizer], epochs: int, columns, L, load_state = None):
+                 loss_fn : LossHandler, optim: Type[torch.optim.Optimizer], epochs: int, BATCH_SIZE, columns, L, load_state = None):
         self.name = name
         self.X_train = X_train
         self.y_train = y_train
@@ -28,6 +28,7 @@ class TrainingModel():
         self.epochs = epochs
         self.columns = columns
         self.L = L
+        self.BATCH_SIZE = BATCH_SIZE
         self.trained = False
         self.variational = False
         if LossType.VARIATIONAL in loss_fn.loss_types:
@@ -67,4 +68,14 @@ class TrainingModel():
 
     def fetch_model_loss(self):
         loss_dict = self.loss_fn.loss_dict
+
+    def fetch_train_val_total_length(self):
+        length_tr = 0
+        length_val = 0
+        for i in self.X_train:
+            length_tr += len(i)
+        for i in self.X_val:
+            length_val += len(i)
+        return length_tr, length_val
+
 
