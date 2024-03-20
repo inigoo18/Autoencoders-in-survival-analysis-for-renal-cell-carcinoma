@@ -6,7 +6,7 @@ import os
 from Preprocessing.bio_networks import get_snap
 
 
-def create_tabular_dataset(ppi):
+def create_tabular_dataset(ppi, clinicalFeatures = []):
    '''
    Creates a dataframe consider a PPI network. Said network needs to have as attributes a sample_id
    representing the patient, as well as a graph_label, representing the PFS value.
@@ -25,18 +25,19 @@ def create_tabular_dataset(ppi):
       for gene in allGenes:
          res += [data[gene]['node_attr']]
       # finally, the PFS value of the patient
-      res += [graph.graph['graph_PFS']]
-      res += [graph.graph['graph_CNSR']]
+
+      for featName in clinicalFeatures:
+         res += [graph.graph[featName]]
       # and we add it to the list of patients
       finalRes += [res]
 
    # Set columns, create dataframe, set index and return value
-   columns = ['id'] + allGenes + ['PFS'] + ['CENSOR']
+   columns = ['id'] + allGenes + clinicalFeatures
    df = pd.DataFrame(finalRes, columns=columns)
    df.set_index('id', inplace=True)
    return df
 
-def create_samples_graphs(genData, cliData, G):
+def create_samples_graphs(genData, cliData, G, clinicalFeatures = []):
 
    '''
    Create a graph for each sample in the dataset, using nodes and edges 
@@ -49,16 +50,15 @@ def create_samples_graphs(genData, cliData, G):
 
    graphs_list = []
    for sample in samples:
-
-      label_PFS = cliData.loc[sample]['PFS_P']
-      label_CNSR = cliData.loc[sample]['PFS_P_CNSR']
       sample_graph = G.copy()
       sample_data = genData.loc[sample]
 
       # Add graph features
-      sample_graph.graph['graph_PFS'] = label_PFS
-      sample_graph.graph['graph_CNSR'] = label_CNSR
       sample_graph.graph['sample_id'] = sample
+
+      # We add some clinical features to the graph (including CENSOR and PFS)
+      for featName in clinicalFeatures:
+         sample_graph.graph[featName] = cliData.loc[sample][featName]
 
       # Add node and edge features
       for node in G.nodes:
@@ -92,6 +92,10 @@ if __name__ == "__main__":
    clinical_data = pd.read_csv(clinical_target, sep=',', index_col=0)
 
    RADIUSES = [1,2,3,4,5,7]
+   clinicalFeatures = ['PFS_P', 'PFS_P_CNSR', 'MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA',
+                       'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
+                       'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
+
    for R in RADIUSES:
       print()
       print('With radius', R, ':')
@@ -103,10 +107,10 @@ if __name__ == "__main__":
       # We only keep columns (genes) that are present in the network
 
       # Graph datasets with PPI networks and expression value per node
-      variants_gd = create_samples_graphs(filtered_expression_data, clinical_data, ppi)
+      variants_gd = create_samples_graphs(filtered_expression_data, clinical_data, ppi, clinicalFeatures)
 
       # Tabular dataset with expression data for each patient
-      tabular_data = create_tabular_dataset(variants_gd)
+      tabular_data = create_tabular_dataset(variants_gd, clinicalFeatures)
 
       # Next, we save it as pickle files
       output_target_graph = os.path.abspath(

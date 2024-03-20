@@ -10,18 +10,23 @@ class TabularDataLoader:
     Class that holds the DataFrame where the tabular data is located.
     """
 
-    def __init__(self, file_path, pred_vars, test_ratio, val_ratio, batch_size):
+    def __init__(self, file_path, pred_vars, cli_vars, test_ratio, val_ratio, batch_size):
         # Load file and convert into float32 since model parameters initialized w/ Pytorch are in float32
         dataframe = pd.read_csv(file_path, sep=',', index_col=0).astype('float32')
         self.dataframe = dataframe
 
-        dataframe = normalize_data(dataframe)
+        dataframe = normalize_data(dataframe, cli_vars)
 
         train_set, test_set, val_set = self.train_test_val_split(dataframe, test_ratio, val_ratio)
 
-        self.X_train = train_set.drop(columns = pred_vars)
-        self.X_test = test_set.drop(columns = pred_vars)
-        self.X_val = val_set.drop(columns=pred_vars)
+        self.X_train = train_set.drop(columns = pred_vars + cli_vars)
+        self.X_test = test_set.drop(columns = pred_vars + cli_vars)
+        self.X_val = val_set.drop(columns=pred_vars + cli_vars)
+
+        # Clinical variables for Cox PH and prediction! These are not taken through the autoencoder
+        self.cli_vars = cli_vars
+        self.Xcli_train = train_set[cli_vars]
+        self.Xcli_test = test_set[cli_vars]
 
         self.Y_train = self.prepare_labels(train_set)
         self.Y_test = self.prepare_labels(test_set)
@@ -54,8 +59,8 @@ class TabularDataLoader:
         :param val_ratio: float value representing val ratio
         :return: train, test and val sets (DFs)
         '''
-        A_indices = tabular_data[tabular_data['CENSOR'] == 0].index
-        B_indices = tabular_data[tabular_data['CENSOR'] == 1].index
+        A_indices = tabular_data[tabular_data['PFS_P_CNSR'] == 0].index
+        B_indices = tabular_data[tabular_data['PFS_P_CNSR'] == 1].index
 
         # Splitting A_indices into training, testing, and validation sets
         A_train, A_temp = train_test_split(A_indices, test_size=test_ratio + val_ratio, random_state=42)
@@ -81,8 +86,8 @@ class TabularDataLoader:
         '''
         Labels are supposed to be in the form of (censorship, time of event)
         '''
-        pfs = dataframe['PFS']
-        cnsr = dataframe['CENSOR']
+        pfs = dataframe['PFS_P']
+        cnsr = dataframe['PFS_P_CNSR']
         result = []
         for p, c in zip(pfs, cnsr):
             b = False
@@ -143,17 +148,22 @@ def create_batches(data, labels, size):
 
     return data_batches_X, data_batches_Y, idxs_chosen
 
-def normalize_data(dataframe):
+def normalize_data(dataframe, cliVars):
     '''
     Normalizes a dataframe after removing PFS and CENSOR columns. Once the normalization is done, we add the cols back in
     :param dataframe: DF to normalize
     :return: normalized DF based in the genetic expressions
     '''
-    DF = dataframe.drop(['PFS', 'CENSOR'], axis=1)
+    DF = dataframe.drop(['PFS_P', 'PFS_P_CNSR'] + cliVars, axis=1)
+    DF_cli = dataframe[cliVars]
     maxVal = max([x for L in DF.values for x in L])
     X_normalized = DF / maxVal
 
-    X_normalized['PFS'] = dataframe['PFS']
-    X_normalized['CENSOR'] = dataframe['CENSOR']
+    X_normalized['PFS_P'] = dataframe['PFS_P']
+    X_normalized['PFS_P_CNSR'] = dataframe['PFS_P_CNSR']
+
+    DF_cli = DF_cli / DF_cli.max()
+
+    X_normalized = pd.concat([X_normalized, DF_cli], axis = 1)
 
     return X_normalized

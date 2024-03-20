@@ -17,7 +17,10 @@ if __name__ == "__main__":
 
     BATCH_SIZE = 32
 
-    d = TabularDataLoader(somepath, ['PFS', 'CENSOR'], 0.2, 0.1, BATCH_SIZE) # 70% train, 20% test, 10% val
+    clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
+                    'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
+
+    d = TabularDataLoader(somepath, ['PFS_P', 'PFS_P_CNSR'], clinicalVars, 0.2, 0.1, BATCH_SIZE) # 70% train, 20% test, 10% val
 
     torch.manual_seed(42)
     np.random.seed(42)
@@ -39,7 +42,7 @@ if __name__ == "__main__":
 
     instanceModels = []
 
-    #combinations = [[LossType.DENOISING, LossType.SPARSE_KL, LossType.VARIATIONAL]]
+    combinations = [[LossType.DENOISING, LossType.SPARSE_KL]]
 
     for comb in combinations:
         print(comb)
@@ -51,7 +54,8 @@ if __name__ == "__main__":
             aeModel = vaeModel
         optim = torch.optim.Adam(aeModel.parameters(), lr = 0.1)
         instanceModel = TrainingModel(title, d.X_train_batch, d.Y_train_batch, d.X_test_batch, d.Y_test_batch,
-                                  d.X_val_batch, d.Y_val_batch, d.Y_dataframe, aeModel, loss_fn, optim, 150, BATCH_SIZE, d.fetch_columns(), L)#, 'best_model_loss_1478.pth')
+                                  d.X_val_batch, d.Y_val_batch, d.Y_dataframe, d.Xcli_train, d.Xcli_test, d.cli_vars,
+                                    aeModel, loss_fn, optim, 50, BATCH_SIZE, d.fetch_columns(), L)#, 'best_model_loss_1478.pth')
         instanceModels += [instanceModel]
 
 

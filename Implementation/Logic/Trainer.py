@@ -142,14 +142,19 @@ class Trainer:
         eval_model.model.eval()
 
         latent_cols = ["Latent " + str(x) for x in list(range(eval_model.L))]
-        latent_idxs = np.arange(eval_model.L)
+        latent_cols += eval_model.Xcli_vars
+        latent_idxs = np.arange(eval_model.L + len(eval_model.Xcli_vars))
 
         latent_space_train = eval_model.model.get_latent_space(torch.tensor(eval_model.unroll_Xtrain()).to(self.device)).detach().cpu().numpy()
         latent_space_test = eval_model.model.get_latent_space(torch.tensor(eval_model.unroll_Xtest()).to(self.device)).detach().cpu().numpy()
 
-        start = 0.000001
-        stop = 0.01
-        step = 0.000003
+        # We add clinical variables
+        latent_space_train = np.concatenate((latent_space_train, eval_model.Xcli_train), axis = 1)
+        latent_space_test = np.concatenate((latent_space_test, eval_model.Xcli_test), axis = 1)
+
+        start = 0.00001
+        stop = 0.1
+        step = 0.00003
         estimated_alphas = np.arange(start, stop + step, step)
 
         # we remove warnings when coefficients in Cox PH model are 0
@@ -359,7 +364,7 @@ def plot_auc(va_times, cph_auc, dir):
 def evaluate_demographic_data(eval_model, survival_functions):
     # Calculate MSE
     demographic_df = eval_model.demographic_test
-    mse = mean_squared_error(demographic_df['PFS'], demographic_df['predicted_PFS'])
+    mse = mean_squared_error(demographic_df['PFS_P'], demographic_df['predicted_PFS'])
 
     # Set Seaborn style
     sns.set_style("whitegrid")
@@ -380,12 +385,12 @@ def evaluate_demographic_data(eval_model, survival_functions):
 
     # AX 0, 1 :: Box plots
     plt.subplot(2, 2, 2)
-    plt.boxplot([demographic_df['PFS'], demographic_df['predicted_PFS']], labels=['y', r'$\hat{y}$'])
+    plt.boxplot([demographic_df['PFS_P'], demographic_df['predicted_PFS']], labels=['y', r'$\hat{y}$'])
     plt.title('Box Plot')
     plt.ylabel('Time')
 
     # AX 1, 0 :: Residuals
-    residuals = demographic_df['PFS'] - demographic_df['predicted_PFS']
+    residuals = demographic_df['PFS_P'] - demographic_df['predicted_PFS']
     plt.subplot(2, 2, 3)
     sns.histplot(residuals, bins=20, color='skyblue', alpha=0.7, kde=True)
     plt.title('Histogram of Residuals')
@@ -393,10 +398,10 @@ def evaluate_demographic_data(eval_model, survival_functions):
     plt.ylabel('Frequency')
 
     # AX 1, 1 :: Actual vs predicted
-    indices = np.arange(len(demographic_df['PFS']))
+    indices = np.arange(len(demographic_df['PFS_P']))
     bar_width = 0.4
     plt.subplot(2, 2, 4)
-    plt.bar(indices, demographic_df['PFS'], bar_width, color='red', label='Actual', alpha=0.7)
+    plt.bar(indices, demographic_df['PFS_P'], bar_width, color='red', label='Actual', alpha=0.7)
     plt.bar(indices + bar_width + 0.1, demographic_df['predicted_PFS'], bar_width, color='blue', label='Predicted', alpha=0.7)
     plt.title('Actual vs Predicted')
     plt.xlabel('Patient')
