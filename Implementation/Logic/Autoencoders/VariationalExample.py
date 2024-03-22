@@ -19,7 +19,10 @@ class VariationalExample(nn.Module):
             #custom_block(600, L),
             custom_block(600, 400),
             custom_block(400, 300),
-            custom_block(300, L),
+            custom_block(300, 150),
+            custom_block(150, 100),
+            custom_block(100, 50),
+            custom_block(50, L),
             torch.nn.Sigmoid()
         )
 
@@ -30,7 +33,10 @@ class VariationalExample(nn.Module):
         # decoder
         self.decoder = nn.Sequential(
             custom_block(2, L),
-            custom_block(L, 300),
+            custom_block(L, 50),
+            custom_block(50, 100),
+            custom_block(100, 150),
+            custom_block(150, 300),
             custom_block(300, 400),
             custom_block(400, 600),
             custom_block(600, 800),

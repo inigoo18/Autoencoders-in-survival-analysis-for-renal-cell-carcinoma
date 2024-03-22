@@ -89,6 +89,11 @@ if __name__ == "__main__":
 
    # expression data
    expression_data = pd.read_csv(expression_target, sep = ',', index_col=0)
+
+   # we remove expressions that are very low (Q3 < 2)
+   q3_values = expression_data.quantile(0.75)
+   expression_data = expression_data.loc[:, (q3_values >= 2) | (expression_data.median() >= 1)]
+
    clinical_data = pd.read_csv(clinical_target, sep=',', index_col=0)
 
    RADIUSES = [1,2,3,4,5,7]
@@ -103,6 +108,7 @@ if __name__ == "__main__":
       ppi = get_snap(expression_data, genes, True, R)
 
       ppi_genes = list(ppi.nodes)
+
       filtered_expression_data = expression_data.loc[:, ppi_genes]
       # We only keep columns (genes) that are present in the network
 

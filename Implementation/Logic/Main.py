@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     torch.manual_seed(42)
     np.random.seed(42)
-    L = 256
+    L = 32
     #aeModel = AE(d.input_dim_train(), L)
 
     losses = [LossType.DENOISING, LossType.SPARSE_KL, LossType.VARIATIONAL]
@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
     instanceModels = []
 
-    combinations = [[LossType.DENOISING, LossType.SPARSE_KL]]
+    #combinations = [[LossType.DENOISING, LossType.SPARSE_KL]]
 
     for comb in combinations:
         print(comb)
@@ -55,7 +55,7 @@ if __name__ == "__main__":
         optim = torch.optim.Adam(aeModel.parameters(), lr = 0.1)
         instanceModel = TrainingModel(title, d.X_train_batch, d.Y_train_batch, d.X_test_batch, d.Y_test_batch,
                                   d.X_val_batch, d.Y_val_batch, d.Y_dataframe, d.Xcli_train, d.Xcli_test, d.cli_vars,
-                                    aeModel, loss_fn, optim, 50, BATCH_SIZE, d.fetch_columns(), L)#, 'best_model_loss_1478.pth')
+                                    aeModel, loss_fn, optim, 100, BATCH_SIZE, d.fetch_columns(), L)#, 'best_model_loss_1478.pth')
         instanceModels += [instanceModel]
 
 
