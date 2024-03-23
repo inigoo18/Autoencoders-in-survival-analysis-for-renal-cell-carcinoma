@@ -222,8 +222,8 @@ class Trainer:
         survival_functions = best_model.predict_survival_function(latent_space_test, best_alpha)
         predicted_times = []
         for g in range(len(survival_functions)):
-            median_value = np.interp(0.5, survival_functions[g].y[::-1], survival_functions[g].x[::-1])
-            predicted_times += [median_value]
+            mean_value = np.trapz(survival_functions[g].y, survival_functions[g].x) # area under survival function
+            predicted_times += [mean_value]
 
         eval_model.demographic_test['predicted_PFS'] = predicted_times
 
