@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
     instanceModels = []
 
-    combinations = [[LossType.DENOISING, LossType.SPARSE_KL]]
+    combinations = [[LossType.DENOISING]]
 
     for comb in combinations:
         print(comb)

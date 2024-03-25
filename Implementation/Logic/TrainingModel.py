@@ -38,6 +38,8 @@ class TrainingModel():
             self.variational = True
         if not os.path.exists("Results/"+name):
             os.makedirs("Results/"+name)
+        if not os.path.exists("Checkpoints/"):
+            os.makedirs("Checkpoints/")
         if load_state is not None:
             self.model.load_state_dict(torch.load(load_state))
             self.trained = True

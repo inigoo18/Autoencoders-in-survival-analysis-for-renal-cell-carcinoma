@@ -124,7 +124,7 @@ class Trainer:
                 best_model_state = tr_model.model.state_dict()
                 best_epoch = t
 
-        torch.save(best_model_state, 'model_loss' + str(tr_model.name) + "_" + str(round(best_validation_loss)) + '.pth')
+        torch.save(best_model_state, 'Checkpoints/model_loss' + str(tr_model.name) + "_" + str(round(best_validation_loss)) + '.pth')
         tr_model.model.load_state_dict(best_model_state)
 
         print("Loading model with best loss", best_validation_loss, "found in Epoch", best_epoch)
@@ -251,10 +251,17 @@ def plot_tsne_coefs(data, names, dir):
 
     x_embedded = TSNE(n_components=2, perplexity=2).fit_transform(np.array(data))
 
+    centroids_manual = []
+    for label in np.unique(cluster_labels):
+        cluster_points = x_embedded[cluster_labels == label]
+        centroid = np.mean(cluster_points, axis=0)
+        centroids_manual.append(centroid)
+    centroids_manual = np.array(centroids_manual)
+
     plt.figure(figsize=(8, 6))
 
     plt.scatter(x_embedded[:, 0], x_embedded[:, 1], c=cluster_labels, cmap = 'viridis', alpha=0.7, label='Data Points')
-    plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], c='red', marker='X', s=100,
+    plt.scatter(centroids_manual[:, 0], centroids_manual[:, 1], c='red', marker='*', s=150,
                 label='Centroids')
     plt.xlabel('Dimension 1', fontsize=12)
     plt.ylabel('Dimension 2', fontsize=12)
