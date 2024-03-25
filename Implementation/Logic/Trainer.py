@@ -43,8 +43,6 @@ class Trainer:
         best_validation_loss = float('inf')
         best_model_state = None
         best_epoch = -1
-        tr_losses = []
-        val_losses = []
         scheduler = StepLR(tr_model.optim, step_size=tr_model.epochs // 3, gamma=0.5)
 
         for t in range(tr_model.epochs + 1):
@@ -107,22 +105,18 @@ class Trainer:
             # number of batches / 64
             tr_len, val_len = tr_model.fetch_train_val_total_length()
 
-            avg_train_loss = train_loss / (tr_len / tr_model.BATCH_SIZE)
-            avg_valid_loss = valid_loss / (val_len / tr_model.BATCH_SIZE)
-            tr_losses += [avg_train_loss]
-            val_losses += [avg_valid_loss]
-
             # Print epoch-wise loss
-            print("Epoch", t, "completed with average training loss:", round(avg_train_loss,2))
-            print("Epoch", t, "completed with average validation loss:", round(avg_valid_loss,2))
-
             loss_dict_tr, loss_dict_val = tr_model.loss_fn.process_batch(num_train_batches, num_val_batches)
+
+            avg_valid_loss = round(loss_dict_val['MSE'][-1], 2)
+            print("Epoch", t, "completed with average validation loss:", avg_valid_loss)
 
             # Check if validation loss improved
             if avg_valid_loss < best_validation_loss:
                 best_validation_loss = avg_valid_loss
                 best_model_state = tr_model.model.state_dict()
                 best_epoch = t
+                print("New checkpoint!")
 
         torch.save(best_model_state, 'Checkpoints/model_loss' + str(tr_model.name) + "_" + str(round(best_validation_loss)) + '.pth')
         tr_model.model.load_state_dict(best_model_state)
@@ -154,20 +148,20 @@ class Trainer:
 
         start = 0.00001
         stop = 0.1
-        step = 0.00003
+        step = 0.00002
         estimated_alphas = np.arange(start, stop + step, step)
 
         # we remove warnings when coefficients in Cox PH model are 0
         warnings.simplefilter("ignore", UserWarning)
         warnings.simplefilter("ignore", FitFailedWarning)
 
-        cv = KFold(n_splits=5, shuffle = True, random_state = 46)
+        cv = KFold(n_splits=3, shuffle = True, random_state = 46)
         gcv = GridSearchCV(
             as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.95, fit_baseline_model = True)),
             param_grid = {"estimator__alphas": [[v] for v in estimated_alphas]},
             cv = cv,
             error_score = 0,
-            n_jobs = 4,
+            n_jobs = 5,
         ).fit(latent_space_train, eval_model.unroll_Ytrain())
 
         cv_results = pd.DataFrame(gcv.cv_results_)
