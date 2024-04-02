@@ -402,8 +402,8 @@ def evaluate_demographic_data(eval_model, survival_functions):
     indices = np.arange(len(demographic_df['PFS_P']))
     bar_width = 0.4
     plt.subplot(2, 2, 4)
-    plt.bar(indices, demographic_df['PFS_P'], bar_width, color='red', label='Actual', alpha=0.7)
-    plt.bar(indices + bar_width + 0.1, demographic_df['predicted_PFS'], bar_width, color='blue', label='Predicted', alpha=0.7)
+    plt.bar(indices, demographic_df['PFS_P'], bar_width, color='red', edgecolor = 'red', label='Actual', alpha=0.7)
+    plt.bar(indices + bar_width + 0.1, demographic_df['predicted_PFS'], bar_width, color='blue', edgecolor = 'blue', label='Predicted', alpha=0.7)
     plt.title('Actual vs Predicted')
     plt.xlabel('Patient')
     plt.ylabel('Time')

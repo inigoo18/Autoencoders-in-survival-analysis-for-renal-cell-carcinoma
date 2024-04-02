@@ -92,7 +92,7 @@ if __name__ == "__main__":
 
    # we remove expressions that are very low (Q3 < 2)
    q3_values = expression_data.quantile(0.75)
-   expression_data = expression_data.loc[:, (q3_values >= 2) | (expression_data.median() >= 1)]
+   expression_data = expression_data.loc[:, (q3_values >= 4) | (expression_data.median() >= 2)]
 
    clinical_data = pd.read_csv(clinical_target, sep=',', index_col=0)
 
