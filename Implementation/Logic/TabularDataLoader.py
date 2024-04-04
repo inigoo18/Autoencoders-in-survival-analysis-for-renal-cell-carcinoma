@@ -17,7 +17,6 @@ class TabularDataLoader:
     def __init__(self, file_path, pred_vars, cli_vars, test_ratio, val_ratio, batch_size):
         # Load file and convert into float32 since model parameters initialized w/ Pytorch are in float32
         dataframe = pd.read_csv(file_path, sep=',', index_col=0).astype('float32')
-        self.dataframe = dataframe
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         self.cli_vars = cli_vars
@@ -34,12 +33,6 @@ class TabularDataLoader:
         self.train_loader = list(create_batches(train_loader, batch_size))
         self.test_loader = list(create_batches(test_loader, batch_size))
         self.val_loader = list(create_batches(val_loader, batch_size))
-
-    def describe_dataframe(self):
-        return self.dataframe.describe()
-
-    def fetch_columns(self):
-        return self.dataframe.columns
 
 
     def input_dim(self):
@@ -103,21 +96,6 @@ class TabularDataLoader:
                 b = True
             result += [(b, p)]
         return result
-
-    def _normalize_data(self):
-        '''
-        Normalizes train and test data
-        '''
-        scaler = MinMaxScaler(feature_range=(0,1))
-
-        self.X_train = pd.DataFrame(scaler.fit_transform(self.X_train), columns=self.X_train.columns,
-                                    index=self.X_train.index)
-
-        self.X_test = pd.DataFrame(scaler.fit_transform(self.X_test), columns=self.X_test.columns,
-                                   index=self.X_test.index)
-
-        self.X_val = pd.DataFrame(scaler.fit_transform(self.X_val), columns=self.X_val.columns,
-                                   index=self.X_val.index)
 
 
 

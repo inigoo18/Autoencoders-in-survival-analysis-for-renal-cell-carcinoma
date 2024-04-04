@@ -9,6 +9,7 @@ from sklearn.model_selection import KFold, GridSearchCV
 from sksurv.linear_model import CoxnetSurvivalAnalysis
 from sksurv.metrics import cumulative_dynamic_auc, as_concordance_index_ipcw_scorer
 from torch.optim.lr_scheduler import StepLR
+from torch_geometric.nn import GAE
 
 from Logic.TrainingModel import TrainingModel
 import numpy as np
@@ -43,6 +44,10 @@ class Trainer:
         best_epoch = -1
         scheduler = StepLR(tr_model.optim, step_size=tr_model.epochs // 3, gamma=0.5)
 
+        if (tr_model.GNN):
+            # TODO :: if it works, put GAE in tr_model.model so we can carry it around.
+            GNN_model = GAE(tr_model.model)
+
         for t in range(tr_model.epochs + 1):
             tr_model.model.train()
             train_loss = 0.0
@@ -60,9 +65,13 @@ class Trainer:
                 if (tr_model.variational):
                     x_pred_batch, mu, log_var = tr_model.model.forward(x_batch)
                 else:
-                    x_pred_batch = tr_model.model.forward(x_batch)
+                    if tr_model.GNN:
+                        z = GNN_model.encode(x_batch)#tr_model.model.forward(x_batch.x, x_batch.edge_index, x_batch.batch)
+                        graph_loss = GNN_model.recon_loss(z, x_batch.edge_index)
+                    else:
+                        x_pred_batch = tr_model.model.forward(x_batch)
                 # Compute loss for the entire batch
-                loss = tr_model.compute_model_loss(x_pred_batch, x_batch, mu, log_var)
+                loss = tr_model.compute_model_loss(x_pred_batch, x_batch, mu, log_var, graph_loss)
 
                 # Accumulate loss for the epoch
                 train_loss += loss.item()
@@ -77,7 +86,6 @@ class Trainer:
             with torch.no_grad():
                 for b in tr_model.val_loader:
                     x_batch = b[0]
-                    # TODO :: use GPU
                     x_pred_batch = None
                     mu = None
                     log_var = None
