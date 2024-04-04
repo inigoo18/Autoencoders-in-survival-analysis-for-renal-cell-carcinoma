@@ -11,8 +11,7 @@ class MWE_AE(torch.nn.Module):
         print("Initializing Minimal Working Example AE with input dim: ", input_dim)
 
         self.encoder = torch.nn.Sequential(
-            custom_block(input_dim, 3000),
-            custom_block(3000, 2500),
+            custom_block(input_dim, 2500),
             custom_block(2500, 2000),
             custom_block(2000, 1500),
             custom_block(1500, 1200),
@@ -41,8 +40,7 @@ class MWE_AE(torch.nn.Module):
             custom_block(1200, 1500),
             custom_block(1500, 2000),
             custom_block(2000, 2500),
-            custom_block(2500, 3000),
-            torch.nn.Linear(3000, input_dim),
+            custom_block(2500, input_dim),
             torch.nn.BatchNorm1d(input_dim),
             torch.nn.Sigmoid()
         )

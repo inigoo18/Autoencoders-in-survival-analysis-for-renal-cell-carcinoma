@@ -32,8 +32,6 @@ class Trainer:
     def __init__(self, models: List[TrainingModel]):
         self.models = models # list of models
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        if (self.device == 'cuda'):
-            print("Notice: using GPU")
 
 
     def train(self, idx):
@@ -47,11 +45,10 @@ class Trainer:
 
         for t in range(tr_model.epochs + 1):
             tr_model.model.train()
-            num_train_batches = len(tr_model.X_train)
             train_loss = 0.0
-            for b in range(num_train_batches):
-                x_batch = torch.tensor(tr_model.X_train[b]).to(self.device)
-                y_batch = torch.tensor(tr_model.y_train[b]).to(self.device)
+            for b in tr_model.train_loader:
+                x_batch = b[0]
+                # TODO :: put it in GPU
 
                 # In case we need to introduce noise to the training data
                 x_batch = tr_model.loss_fn.initialize_loss(x_batch)
@@ -77,12 +74,10 @@ class Trainer:
 
             valid_loss = 0.0
             tr_model.model.eval()
-            num_val_batches = len(tr_model.X_val)
             with torch.no_grad():
-                for b in range(num_val_batches):
-                    # TODO :: we were supposed to use the VAL data!!! Check any mistakes
-                    x_batch = torch.tensor(tr_model.X_val[b]).to(self.device)
-                    y_batch = torch.tensor(tr_model.y_val[b]).to(self.device)
+                for b in tr_model.val_loader:
+                    x_batch = b[0]
+                    # TODO :: use GPU
                     x_pred_batch = None
                     mu = None
                     log_var = None
@@ -98,15 +93,9 @@ class Trainer:
 
             # call scheduler (+optimizer) after training and validation epoch
             scheduler.step()
-            # TODO :: some batches may not be full. We need to account for that. Check that this works
-            # A way to do this is:
-            # length of elements / 64
-            # divided by
-            # number of batches / 64
-            tr_len, val_len = tr_model.fetch_train_val_total_length()
 
             # Print epoch-wise loss
-            loss_dict_tr, loss_dict_val = tr_model.loss_fn.process_batch(num_train_batches, num_val_batches)
+            loss_dict_tr, loss_dict_val = tr_model.loss_fn.process_batch(len(tr_model.train_loader), len(tr_model.val_loader))
 
             avg_valid_loss = round(loss_dict_val['MSE'][-1], 2)
             print("Epoch", t, "completed with average validation loss:", avg_valid_loss)
@@ -136,19 +125,27 @@ class Trainer:
         eval_model.model.eval()
 
         latent_cols = ["Latent " + str(x) for x in list(range(eval_model.L))]
-        latent_cols += eval_model.Xcli_vars
-        latent_idxs = np.arange(eval_model.L + len(eval_model.Xcli_vars))
+        latent_cols += eval_model.cli_vars
+        latent_idxs = np.arange(eval_model.L + len(eval_model.cli_vars))
 
-        latent_space_train = eval_model.model.get_latent_space(torch.tensor(eval_model.unroll_Xtrain()).to(self.device)).detach().cpu().numpy()
-        latent_space_test = eval_model.model.get_latent_space(torch.tensor(eval_model.unroll_Xtest()).to(self.device)).detach().cpu().numpy()
+        latent_space_train = eval_model.model.get_latent_space(eval_model.unroll_loader(eval_model.train_loader, dim = 0))
+        latent_space_test = eval_model.model.get_latent_space(eval_model.unroll_loader(eval_model.test_loader, dim = 0))
 
         # We add clinical variables
-        latent_space_train = np.concatenate((latent_space_train, eval_model.Xcli_train), axis = 1)
-        latent_space_test = np.concatenate((latent_space_test, eval_model.Xcli_test), axis = 1)
+        latent_space_train = np.concatenate((latent_space_train.cpu().detach().numpy(), eval_model.unroll_loader(eval_model.train_loader, dim = 1)), axis = 1)
+        latent_space_test = np.concatenate((latent_space_test.cpu().detach().numpy(), eval_model.unroll_loader(eval_model.test_loader, dim = 1)), axis = 1)
 
-        start = 0.00001
+        yTrain = eval_model.unroll_loader(eval_model.train_loader, dim = 2).numpy()
+        yTrain = np.array([(bool(event), float(time)) for event, time in yTrain], dtype=[('event', bool), ('time', float)])
+        yTest = eval_model.unroll_loader(eval_model.test_loader, dim = 2).numpy()
+        yTest = np.array([(bool(event), float(time)) for event, time in yTest], dtype=[('event', bool), ('time', float)])
+
+        demographic_DF = pd.DataFrame()
+        demographic_DF['PFS_P'] = yTest['time']
+
+        start = 0.0001 # +1 zero
         stop = 0.1
-        step = 0.00002
+        step = 0.0005 # +1 zero
         estimated_alphas = np.arange(start, stop + step, step)
 
         # we remove warnings when coefficients in Cox PH model are 0
@@ -162,7 +159,7 @@ class Trainer:
             cv = cv,
             error_score = 0,
             n_jobs = 5,
-        ).fit(latent_space_train, eval_model.unroll_Ytrain())
+        ).fit(latent_space_train, yTrain)
 
         cv_results = pd.DataFrame(gcv.cv_results_)
 
@@ -205,10 +202,10 @@ class Trainer:
         # Predict using the best model and the test latent space
         cph_risk_scores = best_model.predict(latent_space_test, alpha = best_alpha)
 
-        times = eval_model.unroll_Ytest()['time']
+        times = yTest['time']
 
         va_times = np.arange(min(times), max(times), 0.5)
-        cph_auc, _ = cumulative_dynamic_auc(eval_model.unroll_Ytrain(), eval_model.unroll_Ytest(), cph_risk_scores, va_times)
+        cph_auc, _ = cumulative_dynamic_auc(yTrain, yTest, cph_risk_scores, va_times)
 
         plot_auc(va_times, cph_auc, eval_model.name + "/ROC")
 
@@ -219,9 +216,9 @@ class Trainer:
             mean_value = np.trapz(survival_functions[g].y, survival_functions[g].x) # area under survival function
             predicted_times += [mean_value]
 
-        eval_model.demographic_test['predicted_PFS'] = predicted_times
+        demographic_DF['predicted_PFS'] = predicted_times
 
-        evaluate_demographic_data(eval_model, survival_functions)
+        evaluate_demographic_data(eval_model, survival_functions, demographic_DF)
 
         print("Finished")
 
@@ -362,9 +359,8 @@ def plot_auc(va_times, cph_auc, dir):
     plt.savefig("Results/"+dir)
     plt.clf()
 
-def evaluate_demographic_data(eval_model, survival_functions):
+def evaluate_demographic_data(eval_model, survival_functions, demographic_df):
     # Calculate MSE
-    demographic_df = eval_model.demographic_test
     mse = mean_squared_error(demographic_df['PFS_P'], demographic_df['predicted_PFS'])
 
     # Set Seaborn style

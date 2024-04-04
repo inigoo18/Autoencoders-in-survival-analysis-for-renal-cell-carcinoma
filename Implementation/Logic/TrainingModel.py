@@ -11,20 +11,16 @@ from Logic.Losses.LossType import LossType
 
 
 class TrainingModel():
-    def __init__(self, name, X_train, y_train, X_test, y_test, X_val, y_val, demographic_test, Xcli_train, Xcli_test, Xcli_vars, model : torch.nn.Module,
+    def __init__(self, name, train_loader, test_loader, val_loader, cli_vars, model : torch.nn.Module,
                  loss_fn : LossHandler, optim: Type[torch.optim.Optimizer], epochs: int, BATCH_SIZE, columns, L, load_state = None):
         self.name = name
-        self.X_train = X_train
-        self.y_train = y_train
-        self.X_test = X_test
-        self.y_test = y_test
-        self.X_val = X_val
-        self.y_val = y_val
+        self.train_loader = train_loader
+        self.test_loader = test_loader
+        self.val_loader = val_loader
+
+        self.cli_vars = cli_vars
+
         # Here we hold a dataframe with all the data regarding test patients
-        self.demographic_test = demographic_test
-        self.Xcli_train = Xcli_train
-        self.Xcli_test = Xcli_test
-        self.Xcli_vars = Xcli_vars
         self.model = model
         self.loss_fn = loss_fn
         self.optim = optim
@@ -44,27 +40,6 @@ class TrainingModel():
             self.model.load_state_dict(torch.load(load_state))
             self.trained = True
 
-    def unroll_Xtrain(self):
-        return [i for j in self.X_train for i in j]
-
-    def unroll_Xtest(self):
-        return [i for j in self.X_test for i in j]
-
-    def unroll_Xval(self):
-        return [i for j in self.X_val for i in j]
-
-    def unroll_Ytrain(self):
-        flattened_data = [tuple(item) for sublist in self.y_train for item in sublist]
-        return np.array(flattened_data, dtype=[('event', bool), ('time', float)])
-
-    def unroll_Ytest(self):
-        flattened_data = [tuple(item) for sublist in self.y_test for item in sublist]
-        return np.array(flattened_data, dtype=[('event', bool), ('time', float)])
-
-    def unroll_Yval(self):
-        flattened_data = [tuple(item) for sublist in self.y_val for item in sublist]
-        return np.array(flattened_data, dtype=[('event', bool), ('time', float)])
-
     def compute_model_loss(self, X, predX, mu = None, log_var = None):
         mode = 'Val'
         if self.model.training:
@@ -74,13 +49,24 @@ class TrainingModel():
     def fetch_model_loss(self):
         loss_dict = self.loss_fn.loss_dict
 
-    def fetch_train_val_total_length(self):
-        length_tr = 0
-        length_val = 0
-        for i in self.X_train:
-            length_tr += len(i)
-        for i in self.X_val:
-            length_val += len(i)
-        return length_tr, length_val
+    def unroll_loader(self, loader, dim):
+        # dim = 0 corresponds to genData
+        # 1 corresponds to cliData
+        # we can't have multi-indices with a list, therefore we remove the list with the for loop and then perform tensor operations
+        loader_lists = [tensor for tensor in loader]
+
+        # Extract slices along the specified dimension
+        slices = [tensor[dim] for tensor in loader_lists]
+
+        # Flatten the slices
+        flattened_slices = [item for sublist in slices for item in sublist]
+
+        len0 = len(flattened_slices)
+        len1 = len(flattened_slices[0])
+
+        stacked_tensor = torch.stack(flattened_slices)
+        reshaped_tensor = stacked_tensor.reshape(len0, len1)
+
+        return reshaped_tensor
 
 

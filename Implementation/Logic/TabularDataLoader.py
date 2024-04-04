@@ -1,8 +1,12 @@
 import pandas as pd
+import torch
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 import random
 import numpy as np
+from torch.utils.data import DataLoader
+
+from Logic.CustomDataset import CustomDataset
 
 
 class TabularDataLoader:
@@ -14,29 +18,22 @@ class TabularDataLoader:
         # Load file and convert into float32 since model parameters initialized w/ Pytorch are in float32
         dataframe = pd.read_csv(file_path, sep=',', index_col=0).astype('float32')
         self.dataframe = dataframe
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+        self.cli_vars = cli_vars
+        self.pred_vars = pred_vars
 
         dataframe = normalize_data(dataframe, cli_vars)
 
         train_set, test_set, val_set = self.train_test_val_split(dataframe, test_ratio, val_ratio)
 
-        self.X_train = train_set.drop(columns = pred_vars + cli_vars)
-        self.X_test = test_set.drop(columns = pred_vars + cli_vars)
-        self.X_val = val_set.drop(columns=pred_vars + cli_vars)
+        train_loader = self.custom_loader(train_set)
+        test_loader = self.custom_loader(test_set)
+        val_loader = self.custom_loader(val_set)
 
-        # Clinical variables for Cox PH and prediction! These are not taken through the autoencoder
-        self.cli_vars = cli_vars
-        self.Xcli_train = train_set[cli_vars]
-        self.Xcli_test = test_set[cli_vars]
-
-        self.Y_train = self.prepare_labels(train_set)
-        self.Y_test = self.prepare_labels(test_set)
-        self.Y_val = self.prepare_labels(val_set)
-
-        # We keep this in order to use it for demographic data and stuff
-        self.Y_dataframe = test_set
-
-        #self._normalize_data()
-        self._create_batches(batch_size)
+        self.train_loader = list(create_batches(train_loader, batch_size))
+        self.test_loader = list(create_batches(test_loader, batch_size))
+        self.val_loader = list(create_batches(val_loader, batch_size))
 
     def describe_dataframe(self):
         return self.dataframe.describe()
@@ -44,11 +41,22 @@ class TabularDataLoader:
     def fetch_columns(self):
         return self.dataframe.columns
 
-    def input_dim_train(self):
-        return len(self.X_train.iloc[0])
 
-    def input_dim_test(self):
-        return len(self.Y_train.iloc[0])
+    def input_dim(self):
+
+        # K batches
+        # 3 features (CustomDataset) where 0: genData, 1: cliData, 2: labels
+        # N patients
+        # M features
+        return len(self.train_loader[0][0][0])
+
+    def custom_loader(self, DF):
+        DF_gen = DF.drop(self.pred_vars + self.cli_vars, axis=1).values
+        DF_cli = DF[self.cli_vars].values
+        pred_vals = self.prepare_labels(DF[self.pred_vars])
+
+        cd = CustomDataset(torch.tensor(DF_gen).to(self.device), torch.tensor(DF_cli), torch.tensor(pred_vals))
+        return cd
 
     def train_test_val_split(self, tabular_data, test_ratio, val_ratio):
         '''
@@ -111,42 +119,11 @@ class TabularDataLoader:
         self.X_val = pd.DataFrame(scaler.fit_transform(self.X_val), columns=self.X_val.columns,
                                    index=self.X_val.index)
 
-    def _create_batches(self, size):
-        '''
-        Creates batches for training out of the original data
-        '''
-        self.X_train_batch, self.Y_train_batch, self.idxs_train_batch = create_batches(self.X_train.values,
-                                                                                       self.Y_train, size)
-        self.X_test_batch, self.Y_test_batch, self.idxs_test_batch = create_batches(self.X_test.values, self.Y_test,
-                                                                                    size)
-        self.X_val_batch, self.Y_val_batch, self.idxs_val_batch = create_batches(self.X_val.values, self.Y_val,
-                                                                                    size)
 
 
-def create_batches(data, labels, size):
-    data_batches_X = []
-    data_batches_Y = []
-    num_batches = len(data) // size if (len(data) % size == 0) else (len(data) // size) + 1
-    len_sequence = len(data[0])
-    idxs = list(range(len(data)))
-    idxs_chosen = []
+def create_batches(loader, batch_size):
+    return DataLoader(loader, batch_size = batch_size, shuffle = True)
 
-    for num_batch in range(num_batches):
-        batchX = []
-        batchY = []
-        batch_idxs = []
-        for _ in range(size):
-            if len(idxs) > 0:
-                random_elem = random.choice(idxs)
-                batchX += [data[random_elem]]
-                batchY += [labels[random_elem]]
-                idxs.remove(random_elem)
-                batch_idxs.append(random_elem)
-        data_batches_X += [batchX]
-        data_batches_Y += [batchY]
-        idxs_chosen += [batch_idxs]
-
-    return data_batches_X, data_batches_Y, idxs_chosen
 
 def normalize_data(dataframe, cliVars):
     '''

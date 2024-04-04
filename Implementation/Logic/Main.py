@@ -10,7 +10,7 @@ from Logic.TabularDataLoader import TabularDataLoader
 from Logic.Trainer import Trainer
 from Logic.TrainingModel import TrainingModel
 
-if __name__ == "__main__":
+def tabular_network():
     current_directory = os.getcwd()
     somepath = os.path.abspath(
         os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_tabular_R3.csv'))
@@ -42,20 +42,19 @@ if __name__ == "__main__":
 
     instanceModels = []
 
-    #combinations = [[LossType.DENOISING]]
+    #combinations = [[]]
 
     for comb in combinations:
         print(comb)
         title = "RESULT_L_"+str(L)+ "_" + '+'.join(str(loss.name) for loss in comb)
         loss_fn = LossHandler(comb, loss_args)
-        aeModel = MWE_AE(d.input_dim_train(), L)
-        vaeModel = VariationalExample(d.input_dim_train(), L)
+        aeModel = MWE_AE(d.input_dim(), L)
+        vaeModel = VariationalExample(d.input_dim(), L)
         if LossType.VARIATIONAL in comb:
             aeModel = vaeModel
         optim = torch.optim.Adam(aeModel.parameters(), lr = 0.1)
-        instanceModel = TrainingModel(title, d.X_train_batch, d.Y_train_batch, d.X_test_batch, d.Y_test_batch,
-                                  d.X_val_batch, d.Y_val_batch, d.Y_dataframe, d.Xcli_train, d.Xcli_test, d.cli_vars,
-                                    aeModel, loss_fn, optim, 50, BATCH_SIZE, d.fetch_columns(), L)#, 'best_model_loss_1478.pth')
+        instanceModel = TrainingModel(title, d.train_loader, d.test_loader, d.val_loader, clinicalVars,
+                                    aeModel, loss_fn, optim, 5, BATCH_SIZE, d.fetch_columns(), L)#, 'best_model_loss_1478.pth')
         instanceModels += [instanceModel]
 
 
@@ -64,3 +63,16 @@ if __name__ == "__main__":
     trainer.trainAll()
     trainer.evaluateAll()
 
+
+
+def graph_network():
+    pass
+
+
+
+if __name__ == "__main__":
+    option = "Tabular"
+    if option == "Tabular":
+        tabular_network()
+    else:
+        graph_network()
