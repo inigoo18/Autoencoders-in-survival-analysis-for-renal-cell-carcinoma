@@ -32,7 +32,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS):
 
     instanceModels = []
 
-    #combinations = [[]]
+    combinations = [[]]
 
     for comb in combinations:
         print(comb)
@@ -43,7 +43,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS):
         if LossType.VARIATIONAL in comb:
             aeModel = vaeModel
         optim = torch.optim.Adam(aeModel.parameters(), lr = 0.1)
-        instanceModel = TrainingModel(title, d.train_loader, d.test_loader, d.val_loader, clinicalVars,
+        instanceModel = TrainingModel(title, d, clinicalVars,
                                     aeModel, loss_fn, optim, EPOCHS, BATCH_SIZE, L, False)#, 'best_model_loss_1478.pth')
         instanceModels += [instanceModel]
 
@@ -76,16 +76,17 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS):
 
     combinations = [[]]
 
+    print("Input dim:", d.input_dim())
     for comb in combinations:
         print(comb)
         title = "GRAPH_L_" + str(L) + "_" + '+'.join(str(loss.name) for loss in comb)
         loss_fn = LossHandler(comb, loss_args)
-        aeModel = GNNExample(d.input_dim(), L)
+        aeModel = GNNExample(1, d.input_dim(), L, BATCH_SIZE)
         vaeModel = VariationalExample(d.input_dim(), L)
         if LossType.VARIATIONAL in comb:
             aeModel = vaeModel
         optim = torch.optim.Adam(aeModel.parameters(), lr=0.1)
-        instanceModel = TrainingModel(title, d.train_loader, d.test_loader, d.val_loader, clinicalVars,
+        instanceModel = TrainingModel(title, d, clinicalVars,
                                       aeModel, loss_fn, optim, EPOCHS, BATCH_SIZE,
                                       L, True)  # , 'best_model_loss_1478.pth')
         instanceModels += [instanceModel]
@@ -102,15 +103,15 @@ if __name__ == "__main__":
     torch.manual_seed(42)
     np.random.seed(42)
 
-    L = 32
+    L = 64
     loss_args = {'noise_factor': 0.1, 'reg_param': 0.15, 'rho': 0.01}
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
-    EPOCHS = 5
+    EPOCHS = 100
 
     if option == "Tabular":
         BATCH_SIZE = 32
         tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS)
     else:
-        BATCH_SIZE = 8
+        BATCH_SIZE = 32
         graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS)

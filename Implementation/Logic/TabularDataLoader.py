@@ -48,7 +48,7 @@ class TabularDataLoader:
         DF_cli = DF[self.cli_vars].values
         pred_vals = self.prepare_labels(DF[self.pred_vars])
 
-        cd = CustomDataset(torch.tensor(DF_gen).to(self.device), torch.tensor(DF_cli), torch.tensor(pred_vals))
+        cd = CustomDataset(torch.tensor(DF_gen).to(self.device), torch.tensor(DF_cli).to(self.device), torch.tensor(pred_vals).to(self.device))
         return cd
 
     def train_test_val_split(self, tabular_data, test_ratio, val_ratio):
@@ -97,10 +97,22 @@ class TabularDataLoader:
             result += [(b, p)]
         return result
 
+    def unroll_batch(self, data, dim):
+        '''
+        Data in any loader is usually ordered by batches. This method helps us unroll said batch and keep only the genetic data
+        :param data:
+        :return:
+        '''
+        res = torch.tensor([]).to(self.device)
+        for x in data:
+            res = torch.cat((res, x[dim]), dim = 0)
+        return res
+
+
 
 
 def create_batches(loader, batch_size):
-    return DataLoader(loader, batch_size = batch_size, shuffle = True)
+    return DataLoader(loader, batch_size = batch_size, shuffle = False)
 
 
 def normalize_data(dataframe, cliVars):

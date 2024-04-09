@@ -92,12 +92,7 @@ class LossHandler():
     def compute_loss(self, mode, X, predX, params = None, mean = None, log_var = None, graph_loss = None):
         criterion = nn.MSELoss(reduction='sum')
 
-        total_loss = 0
-        if graph_loss is not None:
-            print("Graph loss is", graph_loss)
-            total_loss = graph_loss
-        else:
-            total_loss = criterion(X, predX)
+        total_loss = criterion(X, predX)
         self._add_loss(mode, 'MSE', total_loss)
 
         # We're only interested in additional losses during training phase, when we learn the weights.

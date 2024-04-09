@@ -44,16 +44,11 @@ class Trainer:
         best_epoch = -1
         scheduler = StepLR(tr_model.optim, step_size=tr_model.epochs // 3, gamma=0.5)
 
-        if (tr_model.GNN):
-            # TODO :: if it works, put GAE in tr_model.model so we can carry it around.
-            GNN_model = GAE(tr_model.model)
-
         for t in range(tr_model.epochs + 1):
             tr_model.model.train()
             train_loss = 0.0
             for b in tr_model.train_loader:
-                x_batch = b[0]
-                # TODO :: put it in GPU
+                x_batch = b[0] # we keep the first attribute from CustomDataset (x)
 
                 # In case we need to introduce noise to the training data
                 x_batch = tr_model.loss_fn.initialize_loss(x_batch)
@@ -65,13 +60,13 @@ class Trainer:
                 if (tr_model.variational):
                     x_pred_batch, mu, log_var = tr_model.model.forward(x_batch)
                 else:
-                    if tr_model.GNN:
-                        z = GNN_model.encode(x_batch)#tr_model.model.forward(x_batch.x, x_batch.edge_index, x_batch.batch)
-                        graph_loss = GNN_model.recon_loss(z, x_batch.edge_index)
-                    else:
-                        x_pred_batch = tr_model.model.forward(x_batch)
+                    x_pred_batch = tr_model.model.forward(x_batch)
+
+                # We transform graph -> tabular data. If already tabular, nothing happens.
+                x_batch = tr_model.transform_to_tabular(x_batch)
+                
                 # Compute loss for the entire batch
-                loss = tr_model.compute_model_loss(x_pred_batch, x_batch, mu, log_var, graph_loss)
+                loss = tr_model.compute_model_loss(x_batch, x_pred_batch, mu, log_var)
 
                 # Accumulate loss for the epoch
                 train_loss += loss.item()
@@ -94,6 +89,9 @@ class Trainer:
                         x_pred_batch, mu, log_var = tr_model.model.forward(x_batch)
                     else:
                         x_pred_batch = tr_model.model.forward(x_batch)
+
+                    # We transform graph -> tabular data. If already tabular, nothing happens.
+                    x_batch = tr_model.transform_to_tabular(x_batch)
 
                     # Compute loss for the entire batch
                     loss = tr_model.compute_model_loss(x_pred_batch, x_batch, mu, log_var)
@@ -136,24 +134,30 @@ class Trainer:
         latent_cols += eval_model.cli_vars
         latent_idxs = np.arange(eval_model.L + len(eval_model.cli_vars))
 
-        latent_space_train = eval_model.model.get_latent_space(eval_model.unroll_loader(eval_model.train_loader, dim = 0))
-        latent_space_test = eval_model.model.get_latent_space(eval_model.unroll_loader(eval_model.test_loader, dim = 0))
+        # TODO :: figure out how to get the latent space with graphs
+        # todo: unroll batch
+        print("Let's see...", eval_model.data_loader.unroll_batch(eval_model.train_loader, dim = 0))
+        latent_space_train = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.train_loader, dim = 0))
+        latent_space_test = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=0))
 
         # We add clinical variables
-        latent_space_train = np.concatenate((latent_space_train.cpu().detach().numpy(), eval_model.unroll_loader(eval_model.train_loader, dim = 1)), axis = 1)
-        latent_space_test = np.concatenate((latent_space_test.cpu().detach().numpy(), eval_model.unroll_loader(eval_model.test_loader, dim = 1)), axis = 1)
+        print("Latent space: ", latent_space_train.cpu().detach().numpy())
+        print("Clinical vars: ", eval_model.data_loader.unroll_batch(eval_model.train_loader, dim=1))
+        # TODO:: in unroll_batch place the tensor in cpu.
+        latent_space_train = np.concatenate((latent_space_train.cpu().detach().numpy(), eval_model.data_loader.unroll_batch(eval_model.train_loader, dim=1).cpu().detach().numpy()), axis = 1)
+        latent_space_test = np.concatenate((latent_space_test.cpu().detach().numpy(), eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=1).cpu().detach().numpy()), axis = 1)
 
-        yTrain = eval_model.unroll_loader(eval_model.train_loader, dim = 2).numpy()
+        yTrain = eval_model.data_loader.unroll_batch(eval_model.train_loader, dim=2).cpu().detach().numpy()
         yTrain = np.array([(bool(event), float(time)) for event, time in yTrain], dtype=[('event', bool), ('time', float)])
-        yTest = eval_model.unroll_loader(eval_model.test_loader, dim = 2).numpy()
+        yTest = eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=2).cpu().detach().numpy()
         yTest = np.array([(bool(event), float(time)) for event, time in yTest], dtype=[('event', bool), ('time', float)])
 
         demographic_DF = pd.DataFrame()
         demographic_DF['PFS_P'] = yTest['time']
 
-        start = 0.0001 # +1 zero
+        start = 0.00001
         stop = 0.1
-        step = 0.0005 # +1 zero
+        step = 0.00005
         estimated_alphas = np.arange(start, stop + step, step)
 
         # we remove warnings when coefficients in Cox PH model are 0

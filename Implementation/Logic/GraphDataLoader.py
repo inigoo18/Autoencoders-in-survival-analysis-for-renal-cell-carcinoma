@@ -52,7 +52,7 @@ class GraphDataLoader:
         #print(len(self.train_loader[0])) # 3
         #print(len(self.train_loader[0][0])) # 32
         #print(len(self.train_loader[0][0][0])) # 2
-        return self.train_loader[0][0][0].x.shape[1]
+        return self.train_loader[0][0][0].x.shape[0]
 
     def custom_loader(self, graphs):
         # we use the method collect_all_graph_data to convert from networkx object to Data object for use in the network
@@ -76,7 +76,7 @@ class GraphDataLoader:
             pred_data += [tmp]
         pred_data = self.prepare_labels(pd.DataFrame(pred_data, columns = self.pred_vars))
 
-        cd = CustomDataset(gen_data, torch.tensor(cli_data), torch.tensor(pred_data))
+        cd = CustomDataset(gen_data, torch.tensor(cli_data).to(self.device), torch.tensor(pred_data).to(self.device))
         return cd
 
     def train_test_val_split(self, graphs, test_ratio, val_ratio):
@@ -126,10 +126,27 @@ class GraphDataLoader:
             result += [(b, p)]
         return result
 
+    def unroll_batch(self, data, dim):
+        '''
+        Data in any loader is usually ordered by batches. This method helps us unroll said batch and keep only the important data
+        :param data: a loader
+        :param dim: dimension to unroll by
+        :return: if dim = 0, returns genetic data, if dim = 1, clinical, otherwise if dim = 2, returns targets
+        '''
+        if dim == 0:
+            res = []
+            for x in data:
+                res += [x[dim]]
+            return list(DataLoader(res, batch_size = len(res)))
+        else:
+            res = torch.tensor([]).to(self.device)
+            for x in data:
+                res = torch.cat((res, x[dim]), dim=0)
+            return res
 
 
 def create_batches(loader, batch_size):
-    return DataLoader(loader, batch_size = batch_size, shuffle = True)
+    return DataLoader(loader, batch_size = batch_size, shuffle = False)
 
 
 def collect_all_graph_data(graphs, device):

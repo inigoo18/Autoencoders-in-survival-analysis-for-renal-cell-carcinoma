@@ -11,12 +11,14 @@ from Logic.Losses.LossType import LossType
 
 
 class TrainingModel():
-    def __init__(self, name, train_loader, test_loader, val_loader, cli_vars, model : torch.nn.Module,
+    def __init__(self, name, data_loader, cli_vars, model : torch.nn.Module,
                  loss_fn : LossHandler, optim: Type[torch.optim.Optimizer], epochs: int, BATCH_SIZE, L, isGNN, load_state = None):
         self.name = name
-        self.train_loader = train_loader
-        self.test_loader = test_loader
-        self.val_loader = val_loader
+        self.data_loader = data_loader
+        self.input_dim = data_loader.input_dim()
+        self.train_loader = data_loader.train_loader
+        self.test_loader = data_loader.test_loader
+        self.val_loader = data_loader.val_loader
 
         self.cli_vars = cli_vars
 
@@ -26,7 +28,7 @@ class TrainingModel():
         self.optim = optim
         self.epochs = epochs
         self.L = L
-        self.BATCH_SIZE = BATCH_SIZE
+        self.batch_size = BATCH_SIZE
         self.GNN = isGNN
         self.trained = False
         self.variational = False
@@ -40,33 +42,23 @@ class TrainingModel():
             self.model.load_state_dict(torch.load(load_state))
             self.trained = True
 
-    def compute_model_loss(self, X, predX, mu = None, log_var = None, graph_loss = None):
+    def compute_model_loss(self, X, predX, mu = None, log_var = None):
         mode = 'Val'
         if self.model.training:
             mode = 'Train'
-        return self.loss_fn.compute_loss(mode, X, predX, self.model.parameters(), mu, log_var, graph_loss)
+        return self.loss_fn.compute_loss(mode, X, predX, self.model.parameters(), mu, log_var)
 
     def fetch_model_loss(self):
         loss_dict = self.loss_fn.loss_dict
 
-    def unroll_loader(self, loader, dim):
-        # dim = 0 corresponds to genData
-        # 1 corresponds to cliData
-        # we can't have multi-indices with a list, therefore we remove the list with the for loop and then perform tensor operations
-        loader_lists = [tensor for tensor in loader]
-
-        # Extract slices along the specified dimension
-        slices = [tensor[dim] for tensor in loader_lists]
-
-        # Flatten the slices
-        flattened_slices = [item for sublist in slices for item in sublist]
-
-        len0 = len(flattened_slices)
-        len1 = len(flattened_slices[0])
-
-        stacked_tensor = torch.stack(flattened_slices)
-        reshaped_tensor = stacked_tensor.reshape(len0, len1)
-
-        return reshaped_tensor
+    def transform_to_tabular(self, data):
+        '''
+        This method takes the graph attribute batch and returns it in tabular format, so we can compare with the obtained representation.
+        :return: Tabular format of the data
+        '''
+        if self.GNN:
+            return torch.reshape(data.x, (len(data), self.input_dim))
+        else:
+            return data
 
 
