@@ -23,6 +23,8 @@ import seaborn as sns
 
 from sklearn.manifold import TSNE
 
+import copy
+
 
 class Trainer:
     """
@@ -48,10 +50,10 @@ class Trainer:
             tr_model.model.train()
             train_loss = 0.0
             for b in tr_model.train_loader:
-                x_batch = b[0] # we keep the first attribute from CustomDataset (x)
+                x_batch = b[0] # we keep the first attribute from CustomDataset (data)
 
                 # In case we need to introduce noise to the training data
-                x_batch = tr_model.loss_fn.initialize_loss(x_batch)
+                x_batch = tr_model.loss_fn.initialize_loss(x_batch, tr_model.GNN)
 
                 x_pred_batch = None
                 mu = None
@@ -109,7 +111,7 @@ class Trainer:
             # Check if validation loss improved
             if avg_valid_loss < best_validation_loss:
                 best_validation_loss = avg_valid_loss
-                best_model_state = tr_model.model.state_dict()
+                best_model_state = copy.deepcopy(tr_model.model.state_dict())
                 best_epoch = t
                 print("New checkpoint!")
 
@@ -134,16 +136,13 @@ class Trainer:
         latent_cols += eval_model.cli_vars
         latent_idxs = np.arange(eval_model.L + len(eval_model.cli_vars))
 
-        # TODO :: figure out how to get the latent space with graphs
-        # todo: unroll batch
-        print("Let's see...", eval_model.data_loader.unroll_batch(eval_model.train_loader, dim = 0))
+        # TODO:: delete once done testing
+        tmp_delete = eval_model.data_loader.unroll_batch(eval_model.test_loader, dim = 0)
+
         latent_space_train = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.train_loader, dim = 0))
         latent_space_test = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=0))
 
         # We add clinical variables
-        print("Latent space: ", latent_space_train.cpu().detach().numpy())
-        print("Clinical vars: ", eval_model.data_loader.unroll_batch(eval_model.train_loader, dim=1))
-        # TODO:: in unroll_batch place the tensor in cpu.
         latent_space_train = np.concatenate((latent_space_train.cpu().detach().numpy(), eval_model.data_loader.unroll_batch(eval_model.train_loader, dim=1).cpu().detach().numpy()), axis = 1)
         latent_space_test = np.concatenate((latent_space_test.cpu().detach().numpy(), eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=1).cpu().detach().numpy()), axis = 1)
 
@@ -152,12 +151,24 @@ class Trainer:
         yTest = eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=2).cpu().detach().numpy()
         yTest = np.array([(bool(event), float(time)) for event, time in yTest], dtype=[('event', bool), ('time', float)])
 
+        print("This is how latent space train looks:")
+        print(latent_space_train, len(latent_space_train))
+
+        print("This is how latent space test looks:")
+        print(latent_space_test, len(latent_space_test))
+
+        print("This is how yTrain looks:")
+        print(yTrain, len(yTrain))
+
+        print("This is how yTest looks:")
+        print(yTest, len(yTest))
+
         demographic_DF = pd.DataFrame()
         demographic_DF['PFS_P'] = yTest['time']
 
-        start = 0.00001
+        start = 0.000001
         stop = 0.1
-        step = 0.00005
+        step = 0.000005
         estimated_alphas = np.arange(start, stop + step, step)
 
         # we remove warnings when coefficients in Cox PH model are 0
@@ -166,7 +177,7 @@ class Trainer:
 
         cv = KFold(n_splits=3, shuffle = True, random_state = 46)
         gcv = GridSearchCV(
-            as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.95, fit_baseline_model = True)),
+            as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.9, fit_baseline_model = True, max_iter = 150000, normalize = True)),
             param_grid = {"estimator__alphas": [[v] for v in estimated_alphas]},
             cv = cv,
             error_score = 0,
@@ -221,14 +232,39 @@ class Trainer:
 
         plot_auc(va_times, cph_auc, eval_model.name + "/ROC")
 
-        # Using survival functions, obtain median and assign it to each patient.
+        # Using survival functions, obtain median OR mean and assign it to each patient.
         survival_functions = best_model.predict_survival_function(latent_space_test, best_alpha)
         predicted_times = []
-        for g in range(len(survival_functions)):
-            mean_value = np.trapz(survival_functions[g].y, survival_functions[g].x) # area under survival function
-            predicted_times += [mean_value]
+
+        # TODO :: test time
+        print("TEST TIME:")
+        for i in range(len(survival_functions)):
+            print(i)
+            print(latent_space_test[i])
+            print(survival_functions[i].x)
+            print(survival_functions[i].y)
+
+        # TODO:: this must be placed somewhere else in the beginning.
+        mode = "Mean"
+        print("Using prediction mode: ", mode)
+
+        if mode == "Mean":
+            for g in range(len(survival_functions)):
+                mean_value = np.trapz(survival_functions[g].y, survival_functions[g].x) # area under survival function
+                predicted_times += [mean_value]
+        elif mode == "Median":
+            for g in range(len(survival_functions)):
+                median_value = np.interp(0.5, survival_functions[g].y[::-1], survival_functions[g].x[::-1])
+                predicted_times += [median_value]
 
         demographic_DF['predicted_PFS'] = predicted_times
+        print(demographic_DF)
+
+        for i in range(len(tmp_delete)):
+            print(i)
+            print("original:", tmp_delete[i])
+            print("y:", yTest[i])
+            print("y_pred", predicted_times[i])
 
         evaluate_demographic_data(eval_model, survival_functions, demographic_DF)
 
@@ -349,6 +385,7 @@ def plot_cindex(alphas, mean, std, best_alpha, dir):
     ax.axvline(best_alpha, c="C1")
     ax.axhline(0.5, color="grey", linestyle="--")
     ax.grid(True)
+    plt.title("C-Index of the COX PH model using Train data")
     plt.savefig("Results/"+dir)
     plt.clf()
 
@@ -367,12 +404,20 @@ def plot_auc(va_times, cph_auc, dir):
 
     plt.xlabel("months from enrollment")
     plt.ylabel("time-dependent AUC")
+    plt.title("Area under Curve using best COX PH model with test data")
     plt.grid(True)
     plt.savefig("Results/"+dir)
     plt.clf()
 
 def evaluate_demographic_data(eval_model, survival_functions, demographic_df):
     # Calculate MSE
+
+    print("DEMOGRAPHIC DF")
+    print(demographic_df)
+
+    print("Index 0")
+    print(demographic_df.iloc[0])
+
     mse = mean_squared_error(demographic_df['PFS_P'], demographic_df['predicted_PFS'])
 
     # Set Seaborn style
@@ -381,13 +426,13 @@ def evaluate_demographic_data(eval_model, survival_functions, demographic_df):
     plt.figure(figsize=(16, 12))
 
     # AX 0, 0 :: Survival function
-    for g in survival_functions:
+    for idx, g in enumerate(survival_functions):
         color = plt.cm.prism(np.random.rand())
         plt.subplot(2, 2, 1)
         plt.plot(g.x, g.y, color=color, alpha=0.3)
 
         median_value = np.interp(0.5, g.y[::-1], g.x[::-1])
-        plt.plot(median_value, 0.5, 'x', color=color, alpha=0.5, markersize=10)
+        plt.plot(demographic_df.iloc[idx]['predicted_PFS'], 0.5, 'x', color=color, alpha=0.5, markersize=10)
         plt.title('Survival Function')
         plt.xlabel('Time')
         plt.ylabel('Survival Probability')

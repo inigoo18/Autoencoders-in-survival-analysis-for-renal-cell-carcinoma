@@ -19,20 +19,21 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS):
 
     d = TabularDataLoader(somepath, ['PFS_P', 'PFS_P_CNSR'], clinicalVars, 0.2, 0.1, BATCH_SIZE) # 70% train, 20% test, 10% val
 
-    losses = [LossType.DENOISING, LossType.SPARSE_KL, LossType.VARIATIONAL]
+    losses = [LossType.DENOISING, LossType.SPARSE_KL] #LossType.VARIATIONAL
 
-    combinations = []
+    combinations = [[]]
     combinations.extend([[loss] for loss in losses])
 
     for i in range(len(losses)):
         for j in range(i + 1, len(losses)):
             combinations.append([losses[i], losses[j]])
 
-    combinations += [losses]
+    if losses not in combinations:
+        combinations += [losses]
 
     instanceModels = []
 
-    combinations = [[]]
+    #combinations = [[]]
 
     for comb in combinations:
         print(comb)
@@ -42,7 +43,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS):
         vaeModel = VariationalExample(d.input_dim(), L)
         if LossType.VARIATIONAL in comb:
             aeModel = vaeModel
-        optim = torch.optim.Adam(aeModel.parameters(), lr = 0.1)
+        optim = torch.optim.Adam(aeModel.parameters(), lr = 0.0001)
         instanceModel = TrainingModel(title, d, clinicalVars,
                                     aeModel, loss_fn, optim, EPOCHS, BATCH_SIZE, L, False)#, 'best_model_loss_1478.pth')
         instanceModels += [instanceModel]
@@ -61,20 +62,21 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS):
     d = GraphDataLoader(somepath, ['PFS_P', 'PFS_P_CNSR'], clinicalVars, 0.2, 0.1,
                           BATCH_SIZE)  # 70% train, 20% test, 10% val
 
-    losses = [LossType.DENOISING, LossType.SPARSE_KL, LossType.VARIATIONAL]
+    losses = [LossType.DENOISING, LossType.SPARSE_KL] #LossType.VARIATIONAL
 
-    combinations = []
+    combinations = [[]]
     combinations.extend([[loss] for loss in losses])
 
     for i in range(len(losses)):
         for j in range(i + 1, len(losses)):
             combinations.append([losses[i], losses[j]])
 
-    combinations += [losses]
+    if losses not in combinations:
+        combinations += [losses]
 
     instanceModels = []
 
-    combinations = [[]]
+    #combinations = [[]]
 
     print("Input dim:", d.input_dim())
     for comb in combinations:
@@ -85,10 +87,10 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS):
         vaeModel = VariationalExample(d.input_dim(), L)
         if LossType.VARIATIONAL in comb:
             aeModel = vaeModel
-        optim = torch.optim.Adam(aeModel.parameters(), lr=0.1)
+        optim = torch.optim.Adam(aeModel.parameters(), lr=0.001)
         instanceModel = TrainingModel(title, d, clinicalVars,
                                       aeModel, loss_fn, optim, EPOCHS, BATCH_SIZE,
-                                      L, True)  # , 'best_model_loss_1478.pth')
+                                      L, True)#, 'model_lossGRAPH_L_256__2015.pth')
         instanceModels += [instanceModel]
 
     trainer = Trainer(instanceModels)
@@ -98,13 +100,13 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS):
 
 
 if __name__ == "__main__":
-    option = "Graph"
+    option = "Tabular"
 
     torch.manual_seed(42)
     np.random.seed(42)
 
-    L = 64
-    loss_args = {'noise_factor': 0.1, 'reg_param': 0.15, 'rho': 0.01}
+    L = 256
+    loss_args = {'noise_factor': 0.05, 'reg_param': 0.3, 'rho': 0.001}
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
     EPOCHS = 100

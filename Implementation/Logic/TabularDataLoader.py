@@ -115,21 +115,29 @@ def create_batches(loader, batch_size):
     return DataLoader(loader, batch_size = batch_size, shuffle = False)
 
 
-def normalize_data(dataframe, cliVars):
+def normalize_data(dataframe, cliVars, mode = "Max"):
     '''
     Normalizes a dataframe after removing PFS and CENSOR columns. Once the normalization is done, we add the cols back in
     :param dataframe: DF to normalize
     :return: normalized DF based in the genetic expressions
     '''
+    print("Using", mode, "normalization");
     DF = dataframe.drop(['PFS_P', 'PFS_P_CNSR'] + cliVars, axis=1)
     DF_cli = dataframe[cliVars]
     maxVal = max([x for L in DF.values for x in L])
-    X_normalized = DF / maxVal
+    minVal = min([x for L in DF.values for x in L])
+    if mode == "Max":
+        X_normalized = DF / maxVal
+    else:
+        X_normalized = (DF - minVal) / (maxVal - minVal)
 
     X_normalized['PFS_P'] = dataframe['PFS_P']
     X_normalized['PFS_P_CNSR'] = dataframe['PFS_P_CNSR']
 
-    DF_cli = DF_cli / DF_cli.max()
+    if mode == "Max":
+        DF_cli = DF_cli / DF_cli.max()
+    else:
+        DF_cli = (DF_cli - DF_cli.min()) / (DF_cli.max() - DF_cli.min())
 
     X_normalized = pd.concat([X_normalized, DF_cli], axis = 1)
 

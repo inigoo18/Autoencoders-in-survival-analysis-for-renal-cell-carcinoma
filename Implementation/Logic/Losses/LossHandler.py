@@ -39,18 +39,24 @@ class LossHandler():
     def clear(self):
         self.loss_dict = {}
 
-    def initialize_loss(self, x):
+    def initialize_loss(self, data, isGNN):
         '''
         This function takes the data and does something to it depending on the loss type we selected.
         Mainly so that if we selected a denoising autoencoder, we can add some noise to the data
-        :param x: input data
+        :param data: input data
         :return: a variant of the input data
         '''
         if LossType.DENOISING in self.loss_types:
-            noisy_data =  x + self.args['noise_factor'] * torch.randn_like(x) # torch.randn follows gaussian distribution
-            noisy_data = torch.clamp(noisy_data, min= 0, max = 1)
-            return noisy_data
-        return x
+            if isGNN:
+                # we only want to access the x field (features) of the graph
+                data.x = data.x + self.args['noise_factor'] * torch.randn_like(data.x)
+                data.x = torch.clamp(data.x, min=0, max=1)
+                return data
+            else:
+                noisy_data = data + self.args['noise_factor'] * torch.randn_like(data) # torch.randn follows gaussian distribution
+                noisy_data = torch.clamp(noisy_data, min= 0, max = 1)
+                return noisy_data
+        return data
 
     def _sparse_loss(self, params):
         '''
