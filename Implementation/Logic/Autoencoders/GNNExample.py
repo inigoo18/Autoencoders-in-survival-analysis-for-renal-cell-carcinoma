@@ -4,7 +4,7 @@ import torch
 import torch_geometric
 
 from torch.nn import Linear, ReLU,Dropout
-from torch_geometric.nn import Sequential, GCNConv, TopKPooling
+from torch_geometric.nn import Sequential, GCNConv, TopKPooling, SimpleConv
 import torch.nn.functional as F
 import torch.nn as nn
 
@@ -14,7 +14,7 @@ from Logic.Autoencoders.MinWorkingExample import MWE_AE
 class GNNExample(nn.Module):
     def __init__(self, num_features, input_dim, L, batch_size):
         super(GNNExample, self).__init__()
-        self.conv = GCNConv(num_features, num_features)
+        self.conv = SimpleConv(aggr = "median", combine_root = "self_loop") # aggr :: [sum, mean, mul]
         model = MWE_AE(input_dim, L)
         self.encoder = model.encoder
         self.decoder = model.decoder
@@ -22,13 +22,16 @@ class GNNExample(nn.Module):
         self.input_dim = input_dim
         self.num_features = num_features
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.dropout = nn.Dropout(p=0.2)
 
     def convolute(self, data):
         xs = torch.tensor([]).to(self.device)
         for i in range(len(data)):
             x, edge_index = data[i].x, data[i].edge_index
             h = self.conv(x, edge_index)
-            h = F.softplus(h)
+            h = self.dropout(h)
+            #h = F.hardswish(h)
+            #h = F.tanh(h)
             xs = torch.cat([xs, h])
         return xs
 

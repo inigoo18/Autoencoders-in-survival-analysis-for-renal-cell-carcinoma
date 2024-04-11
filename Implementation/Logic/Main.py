@@ -87,10 +87,10 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS):
         vaeModel = VariationalExample(d.input_dim(), L)
         if LossType.VARIATIONAL in comb:
             aeModel = vaeModel
-        optim = torch.optim.Adam(aeModel.parameters(), lr=0.001)
+        optim = torch.optim.Adam(aeModel.parameters(), lr=0.005)
         instanceModel = TrainingModel(title, d, clinicalVars,
                                       aeModel, loss_fn, optim, EPOCHS, BATCH_SIZE,
-                                      L, True)#, 'model_lossGRAPH_L_256__2015.pth')
+                                      L, True)#, 'model_lossGRAPH_L_256__182.pth')
         instanceModels += [instanceModel]
 
     trainer = Trainer(instanceModels)
@@ -100,13 +100,13 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS):
 
 
 if __name__ == "__main__":
-    option = "Tabular"
+    option = "Graph"
 
     torch.manual_seed(42)
     np.random.seed(42)
 
     L = 256
-    loss_args = {'noise_factor': 0.05, 'reg_param': 0.3, 'rho': 0.001}
+    loss_args = {'noise_factor': 0.05, 'reg_param': 0.35, 'rho': 0.001}
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
     EPOCHS = 100
