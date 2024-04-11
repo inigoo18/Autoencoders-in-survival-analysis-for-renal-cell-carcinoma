@@ -89,7 +89,7 @@ class LossHandler():
             self.loss_dict_val[name] += [val.item()]
 
 
-    def compute_loss(self, mode, X, predX, params = None, mean = None, log_var = None):
+    def compute_loss(self, mode, X, predX, params = None, mean = None, log_var = None, graph_loss = None):
         criterion = nn.MSELoss(reduction='sum')
 
         total_loss = criterion(X, predX)

@@ -17,7 +17,6 @@ class TabularDataLoader:
     def __init__(self, file_path, pred_vars, cli_vars, test_ratio, val_ratio, batch_size):
         # Load file and convert into float32 since model parameters initialized w/ Pytorch are in float32
         dataframe = pd.read_csv(file_path, sep=',', index_col=0).astype('float32')
-        self.dataframe = dataframe
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         self.cli_vars = cli_vars
@@ -35,12 +34,6 @@ class TabularDataLoader:
         self.test_loader = list(create_batches(test_loader, batch_size))
         self.val_loader = list(create_batches(val_loader, batch_size))
 
-    def describe_dataframe(self):
-        return self.dataframe.describe()
-
-    def fetch_columns(self):
-        return self.dataframe.columns
-
 
     def input_dim(self):
 
@@ -55,7 +48,7 @@ class TabularDataLoader:
         DF_cli = DF[self.cli_vars].values
         pred_vals = self.prepare_labels(DF[self.pred_vars])
 
-        cd = CustomDataset(torch.tensor(DF_gen).to(self.device), torch.tensor(DF_cli), torch.tensor(pred_vals))
+        cd = CustomDataset(torch.tensor(DF_gen).to(self.device), torch.tensor(DF_cli).to(self.device), torch.tensor(pred_vals).to(self.device))
         return cd
 
     def train_test_val_split(self, tabular_data, test_ratio, val_ratio):
@@ -104,25 +97,22 @@ class TabularDataLoader:
             result += [(b, p)]
         return result
 
-    def _normalize_data(self):
+    def unroll_batch(self, data, dim):
         '''
-        Normalizes train and test data
+        Data in any loader is usually ordered by batches. This method helps us unroll said batch and keep only the genetic data
+        :param data:
+        :return:
         '''
-        scaler = MinMaxScaler(feature_range=(0,1))
+        res = torch.tensor([]).to(self.device)
+        for x in data:
+            res = torch.cat((res, x[dim]), dim = 0)
+        return res
 
-        self.X_train = pd.DataFrame(scaler.fit_transform(self.X_train), columns=self.X_train.columns,
-                                    index=self.X_train.index)
-
-        self.X_test = pd.DataFrame(scaler.fit_transform(self.X_test), columns=self.X_test.columns,
-                                   index=self.X_test.index)
-
-        self.X_val = pd.DataFrame(scaler.fit_transform(self.X_val), columns=self.X_val.columns,
-                                   index=self.X_val.index)
 
 
 
 def create_batches(loader, batch_size):
-    return DataLoader(loader, batch_size = batch_size, shuffle = True)
+    return DataLoader(loader, batch_size = batch_size, shuffle = False)
 
 
 def normalize_data(dataframe, cliVars):
