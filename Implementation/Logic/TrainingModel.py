@@ -39,7 +39,9 @@ class TrainingModel():
         if not os.path.exists("Checkpoints/"):
             os.makedirs("Checkpoints/")
         if load_state is not None:
-            self.model.load_state_dict(torch.load(load_state))
+            self.model.load_state_dict(torch.load("Checkpoints/"+load_state))
+            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            self.model.to(device)
             self.trained = True
 
     def compute_model_loss(self, X, predX, mu = None, log_var = None):
