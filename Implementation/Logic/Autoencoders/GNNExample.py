@@ -30,8 +30,6 @@ class GNNExample(nn.Module):
             x, edge_index = data[i].x, data[i].edge_index
             h = self.conv(x, edge_index)
             h = self.dropout(h)
-            #h = F.hardswish(h)
-            #h = F.tanh(h)
             xs = torch.cat([xs, h])
         return xs
 
