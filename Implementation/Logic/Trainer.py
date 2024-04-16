@@ -22,6 +22,7 @@ from sklearn.exceptions import FitFailedWarning
 import seaborn as sns
 
 from sklearn.manifold import TSNE
+import xlsxwriter
 
 import copy
 
@@ -96,7 +97,7 @@ class Trainer:
                     x_batch = tr_model.transform_to_tabular(x_batch)
 
                     # Compute loss for the entire batch
-                    loss = tr_model.compute_model_loss(x_pred_batch, x_batch, mu, log_var)
+                    loss = tr_model.compute_model_loss(x_batch, x_pred_batch, mu, log_var)
                     valid_loss += loss.item()
 
             # call scheduler (+optimizer) after training and validation epoch
@@ -151,17 +152,8 @@ class Trainer:
         yTest = eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=2).cpu().detach().numpy()
         yTest = np.array([(bool(event), float(time)) for event, time in yTest], dtype=[('event', bool), ('time', float)])
 
-        print("This is how latent space train looks:")
-        print(latent_space_train, len(latent_space_train))
-
-        print("This is how latent space test looks:")
-        print(latent_space_test, len(latent_space_test))
-
-        print("This is how yTrain looks:")
-        print(yTrain, len(yTrain))
-
-        print("This is how yTest looks:")
-        print(yTest, len(yTest))
+        draw_latent_space('LatentTrain', eval_model.name, latent_space_train)
+        draw_latent_space('LatentTest', eval_model.name, latent_space_test)
 
         demographic_DF = pd.DataFrame()
         demographic_DF['PFS_P'] = yTest['time']
@@ -470,3 +462,29 @@ def evaluate_demographic_data(eval_model, survival_functions, demographic_df):
     plt.savefig("Results/"+eval_model.name + "/prediction")
 
 
+def draw_latent_space(filename, folder, latent_space):
+    row = 1
+    col = 1
+
+    workbook = xlsxwriter.Workbook('Results/' + folder + '/' + filename + '.xlsx')
+    worksheet = workbook.add_worksheet()
+
+    bold_format = workbook.add_format({'bold': True, 'bg_color': '#DDDDDD'})
+
+    for i in range(latent_space.shape[1]):
+        worksheet.write(0, i + 1, 'Lat. ' + str(i), bold_format)
+
+    for i in range(latent_space.shape[0]):
+        worksheet.write(i + 1, 0, 'Pat. ' + str(i), bold_format)
+
+    for xs in latent_space:
+        for x in xs:
+            red_component = max(int(x * 255), 30)
+            blue_component = max(int((1 - x) * 255), 30)
+            purple_hex = '#{:02X}30{:02X}'.format(red_component, blue_component)
+            purple_format = workbook.add_format({'bg_color': purple_hex, 'font_color': 'white'})
+            worksheet.write(row, col, round(x.item(), 2), purple_format)
+            col += 1
+        row += 1
+        col = 1
+    workbook.close()
