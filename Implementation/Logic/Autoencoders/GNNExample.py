@@ -22,13 +22,14 @@ class GNNExample(nn.Module):
         self.input_dim = input_dim
         self.num_features = num_features
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.dropout = nn.Dropout(p=0.2)
+        self.dropout = nn.Dropout(p=0.25)
 
     def convolute(self, data):
         xs = torch.tensor([]).to(self.device)
         for i in range(len(data)):
             x, edge_index = data[i].x, data[i].edge_index
             h = self.conv(x, edge_index)
+            h = h.tanh()
             h = self.dropout(h)
             xs = torch.cat([xs, h])
         return xs

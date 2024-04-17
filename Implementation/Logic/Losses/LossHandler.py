@@ -9,7 +9,7 @@ from Logic.Losses.LossType import LossType
 
 class LossHandler():
 
-    def __init__(self, loss_types, args):
+    def __init__(self, loss_types, args, adjMatrix = None):
         self.loss_types = loss_types
         self.args = args
         self.loss_dict_tr = {}  # here we keep count of the different losses we have
@@ -22,6 +22,7 @@ class LossHandler():
                 self.loss_dict_val[str(loss_type)] = []
         self.check_arguments()
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.adjMatrix = adjMatrix
 
     def check_arguments(self):
         keys = []
@@ -95,10 +96,23 @@ class LossHandler():
             self.loss_dict_val[name] += [val.item()]
 
 
-    def compute_loss(self, mode, X, predX, params = None, mean = None, log_var = None, graph_loss = None):
-        criterion = nn.MSELoss(reduction='sum')
+    def compute_loss(self, mode, X, predX, params = None, mean = None, log_var = None):
+        total_loss = 0
+        if self.adjMatrix is None:
+            criterion = nn.MSELoss(reduction='sum')
+            total_loss = criterion(X, predX)
+        else:
+            criterion = nn.MSELoss(reduction = 'sum')
+            total_loss = criterion(X, predX)
+            #total_loss = 0
+            # TODO :: when this works, maybe we can remove the batch and concatenate the adjMatrices
+            #for item in predX: # each item in batch
+            #    reshaped_tensor = torch.reshape(item, (len(item), 1))
+            #    recons_matrix = torch.matmul(reshaped_tensor, reshaped_tensor.t())
+            #    total_loss += criterion(recons_matrix, self.adjMatrix)
+            #total_loss = total_loss / len(predX)
 
-        total_loss = criterion(X, predX)
+
         self._add_loss(mode, 'MSE', total_loss)
 
         # We're only interested in additional losses during training phase, when we learn the weights.
