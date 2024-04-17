@@ -33,7 +33,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS):
 
     instanceModels = []
 
-    #combinations = [[]]
+    combinations = [[]]
 
     for comb in combinations:
         print(comb)
@@ -87,7 +87,7 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS):
         vaeModel = VariationalExample(d.input_dim(), L)
         if LossType.VARIATIONAL in comb:
             aeModel = vaeModel
-        optim = torch.optim.Adam(aeModel.parameters(), lr=0.005)
+        optim = torch.optim.Adam(aeModel.parameters(), lr=0.0005)
         instanceModel = TrainingModel(title, d, clinicalVars,
                                       aeModel, loss_fn, optim, EPOCHS, BATCH_SIZE,
                                       L, True)#, 'model_lossGRAPH_L_256__182.pth')

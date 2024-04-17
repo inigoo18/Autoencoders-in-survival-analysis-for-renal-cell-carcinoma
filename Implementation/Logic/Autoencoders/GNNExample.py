@@ -9,7 +9,6 @@ import torch.nn.functional as F
 import torch.nn as nn
 
 from Logic.Autoencoders.MinWorkingExample import MWE_AE
-from Logic.Autoencoders.MinWorkingExampleGNN import MWE_GAE
 
 
 class GNNExample(nn.Module):
@@ -23,8 +22,7 @@ class GNNExample(nn.Module):
         self.input_dim = input_dim
         self.num_features = num_features
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.dropout = nn.Dropout(p=0.2)
-        #self.prelu = nn.PReLU()
+        self.dropout = nn.Dropout(p=0.25)
 
     def convolute(self, data):
         xs = torch.tensor([]).to(self.device)
