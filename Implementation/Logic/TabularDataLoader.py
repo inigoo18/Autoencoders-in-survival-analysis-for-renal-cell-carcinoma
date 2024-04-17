@@ -7,6 +7,7 @@ import numpy as np
 from torch.utils.data import DataLoader
 
 from Logic.CustomDataset import CustomDataset
+from Logic.IterationObject import IterationObject
 
 
 class TabularDataLoader:
@@ -14,7 +15,7 @@ class TabularDataLoader:
     Class that holds the DataFrame where the tabular data is located.
     """
 
-    def __init__(self, file_path, pred_vars, cli_vars, test_ratio, val_ratio, batch_size):
+    def __init__(self, file_path, pred_vars, cli_vars, test_ratio, val_ratio, batch_size, folds):
         # Load file and convert into float32 since model parameters initialized w/ Pytorch are in float32
         dataframe = pd.read_csv(file_path, sep=',', index_col=0).astype('float32')
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -22,26 +23,30 @@ class TabularDataLoader:
         self.cli_vars = cli_vars
         self.pred_vars = pred_vars
 
+        self.input_dim = len(dataframe.columns) - len(cli_vars) - len(pred_vars)
+
         dataframe = normalize_data(dataframe, cli_vars)
 
-        train_set, test_set, val_set = self.train_test_val_split(dataframe, test_ratio, val_ratio)
+        allDatasets = []
 
-        train_loader = self.custom_loader(train_set)
-        test_loader = self.custom_loader(test_set)
-        val_loader = self.custom_loader(val_set)
+        for fold in range(folds):
 
-        self.train_loader = list(create_batches(train_loader, batch_size))
-        self.test_loader = list(create_batches(test_loader, batch_size))
-        self.val_loader = list(create_batches(val_loader, batch_size))
+            dataframe = shift_data(dataframe, folds)
 
+            train_set, test_set, val_set = self.train_test_val_split(dataframe, test_ratio, val_ratio)
 
-    def input_dim(self):
+            train_loader = self.custom_loader(train_set)
+            test_loader = self.custom_loader(test_set)
+            val_loader = self.custom_loader(val_set)
 
-        # K batches
-        # 3 features (CustomDataset) where 0: genData, 1: cliData, 2: labels
-        # N patients
-        # M features
-        return len(self.train_loader[0][0][0])
+            train_loader = list(create_batches(train_loader, batch_size))
+            test_loader = list(create_batches(test_loader, batch_size))
+            val_loader = list(create_batches(val_loader, batch_size))
+
+            it = IterationObject(train_loader, test_loader, val_loader)
+            allDatasets += [it]
+
+        self.allDatasets = allDatasets
 
     def custom_loader(self, DF):
         DF_gen = DF.drop(self.pred_vars + self.cli_vars, axis=1).values
@@ -142,3 +147,11 @@ def normalize_data(dataframe, cliVars, mode = "Max"):
     X_normalized = pd.concat([X_normalized, DF_cli], axis = 1)
 
     return X_normalized
+
+def shift_data(df, K):
+    df_copy = df.copy(deep=True)
+
+    lastRows = df_copy[(len(df) // K) * (K - 1):]
+    df_copy = df_copy.drop(lastRows.index)
+    df_copy = pd.concat([lastRows, df_copy])
+    return df_copy
