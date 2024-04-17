@@ -4,4 +4,4 @@ class FoldObject():
         self.iterations = iterations
         self.MSE = []
         self.ROC = []
-        self.name = name
+        self.name = [str(x) for x in name] # convert enum representations to strings

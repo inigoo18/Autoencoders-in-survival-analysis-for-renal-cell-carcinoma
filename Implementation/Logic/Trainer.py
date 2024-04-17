@@ -191,7 +191,7 @@ class Trainer:
 
         if non_zero == 0:
             print("All coefficients are 0...")
-            return
+            return np.nan, np.nan
 
         non_zero_coefs = best_coefs.query("coefficient != 0")
         coef_order = non_zero_coefs.abs().sort_values("coefficient").index
@@ -242,11 +242,7 @@ class Trainer:
 
         mseError = evaluate_demographic_data(eval_model, survival_functions, demographic_DF)
 
-        if meanRes is None or mseError is None:
-            meanRes = -1;
-            mseError = -1;
         return meanRes, mseError
-        print("Finished")
 
 
 

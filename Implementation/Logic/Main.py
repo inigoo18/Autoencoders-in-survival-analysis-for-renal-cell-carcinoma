@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import torch
+import matplotlib.pyplot as plt
 
 from Logic.Autoencoders.GNNExample import GNNExample
 from Logic.Autoencoders.MinWorkingExample import MWE_AE
@@ -32,7 +33,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS):
     if losses not in combinations:
         combinations += [losses]
 
-    combinations = [[]]
+    #combinations = [[]]
     foldObjects = []
 
     for comb in combinations:
@@ -55,6 +56,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS):
             foldObject.MSE += [mseError]
             foldObject.ROC += [meanRes]
         foldObjects += [foldObject]
+    return foldObjects
 
 
 
@@ -106,9 +108,41 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS):
             foldObject.ROC += [meanRes]
         foldObjects += [foldObject]
 
+    return foldObjects
+
+
+
+def visualize_results(names, ys, typename):
+    means = [np.mean(y[~np.isnan(y)]) for y in np.array(ys)]
+    stds = [np.std(y[~np.isnan(y)]) for y in np.array(ys)]
+
+    x = np.arange(len(means))
+
+    # Create a larger figure
+    plt.figure(figsize=(10, 8))  # Adjust the figure size as needed
+
+    # plot:
+    plt.errorbar(x, means, stds, fmt='o', linewidth=2, capsize=6)
+
+    plt.xticks(x, names, fontsize=8, rotation=90)
+
+    # Set y-axis range from 0 to 1
+    if typename == 'ROC':
+        plt.ylim(0, 1)
+
+    # Add labels and title
+    plt.xlabel('Component')
+    plt.ylabel('Score')
+    plt.title('Scores in ' + typename)
+    plt.tight_layout()
+
+    plt.savefig("Results/" + "Summary_"+typename + "_" + str(round(np.mean(means),2)) + ".png")
+    plt.clf()
+
+
 
 if __name__ == "__main__":
-    option = "Graph"
+    option = "Tabular"
 
     torch.manual_seed(42)
     np.random.seed(42)
@@ -117,12 +151,21 @@ if __name__ == "__main__":
     loss_args = {'noise_factor': 0.05, 'reg_param': 0.35, 'rho': 0.001}
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
-    EPOCHS = 7
-    FOLDS = 3
+    EPOCHS = 11
+    FOLDS = 2
 
     if option == "Tabular":
         BATCH_SIZE = 32
-        tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS)
+        foldObjects = tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS)
     else:
         BATCH_SIZE = 32
-        graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS)
+        foldObjects = graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS)
+
+    foldNames = [fold.name for fold in foldObjects]
+    foldMSE = [fold.MSE for fold in foldObjects]
+    foldROC = [fold.ROC for fold in foldObjects]
+
+    visualize_results(foldNames, foldMSE, 'MSE')
+    visualize_results(foldNames, foldROC, 'ROC')
+
+    print("FINISHED!!")
