@@ -123,6 +123,8 @@ class Trainer:
 
         plot_losses(np.arange(tr_model.epochs+1), loss_dict_tr, loss_dict_val, tr_model.name+"/train_val_loss.png")
 
+        return best_validation_loss
+
     #def trainAll(self):
     #    for idx in range(len(self.models)):
     #        if not self.models[idx].trained:
@@ -155,9 +157,9 @@ class Trainer:
         demographic_DF = pd.DataFrame()
         demographic_DF['PFS_P'] = yTest['time']
 
-        start = 0.0001 # 0.000001
-        stop = 0.1
-        step = 0.005 # 0.000005
+        start = 0.00001#0.00001
+        stop = 0.01
+        step = 0.00004#0.00005
         estimated_alphas = np.arange(start, stop + step, step)
 
         # we remove warnings when coefficients in Cox PH model are 0
@@ -166,7 +168,7 @@ class Trainer:
 
         cv = KFold(n_splits=3, shuffle = True, random_state = 46)
         gcv = GridSearchCV(
-            as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.95, fit_baseline_model = True, max_iter = 250000, normalize = True)),
+            as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.5, fit_baseline_model = True, max_iter = 250000, normalize = True)),
             param_grid = {"estimator__alphas": [[v] for v in estimated_alphas]},
             cv = cv,
             error_score = 0,
@@ -285,6 +287,7 @@ def plot_tsne_coefs(data, names, dir):
     plt.tight_layout()
     plt.savefig("Results/"+dir)
     plt.clf()
+    plt.close()
     #plt.show()
 
 
@@ -349,6 +352,7 @@ def plot_losses(epochs, data_tr, data_val, dir):
 
     plt.savefig("Results/"+dir)
     plt.clf()
+    plt.close()
 
 def plot_cindex(alphas, mean, std, best_alpha, dir):
     fig, ax = plt.subplots(figsize=(9, 6))
@@ -363,6 +367,7 @@ def plot_cindex(alphas, mean, std, best_alpha, dir):
     plt.title("C-Index of the COX PH model using Train data")
     plt.savefig("Results/"+dir)
     plt.clf()
+    plt.close()
 
 def plot_coefs(non_zero_coefs, coef_order, dir):
     _, ax = plt.subplots(figsize=(6, 8))
@@ -371,6 +376,7 @@ def plot_coefs(non_zero_coefs, coef_order, dir):
     ax.grid(True)
     plt.savefig("Results/"+dir)
     plt.clf()
+    plt.close()
     # plt.show()
 
 def plot_auc(va_times, cph_auc, dir):
@@ -384,6 +390,7 @@ def plot_auc(va_times, cph_auc, dir):
     plt.grid(True)
     plt.savefig("Results/"+dir)
     plt.clf()
+    plt.close()
     return meanRes
 
 def evaluate_demographic_data(eval_model, survival_functions, demographic_df):
@@ -445,6 +452,8 @@ def evaluate_demographic_data(eval_model, survival_functions, demographic_df):
     plt.tight_layout()
 
     plt.savefig("Results/"+eval_model.name + "/prediction")
+    plt.clf()
+    plt.close()
 
     return mse
 

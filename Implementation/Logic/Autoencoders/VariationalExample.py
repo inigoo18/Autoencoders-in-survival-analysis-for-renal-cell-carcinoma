@@ -1,53 +1,42 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 class VariationalExample(nn.Module):
 
     def __init__(self, input_dim, L):
         super(VariationalExample, self).__init__()
 
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
         # encoder
-        self.encoder = nn.Sequential(
-            custom_block(input_dim, 3000),
-            custom_block(3000, 2500),
-            custom_block(2500, 2000),
-            custom_block(2000, 1500),
-            custom_block(1500, 1200),
-            custom_block(1200, 1000),
-            custom_block(1000, 800),
-            custom_block(800, 600),
-            #custom_block(600, L),
-            custom_block(600, 400),
-            custom_block(400, 300),
-            custom_block(300, 150),
-            custom_block(150, 100),
-            custom_block(100, 50),
-            custom_block(50, L),
-            torch.nn.Sigmoid()
+        self.encoder = torch.nn.Sequential(
+            custom_block(input_dim, 2000),
+            custom_block(2000, 1000),
+            custom_block(1000, 500),
+
+            # custom_block(600, 400),
+            # custom_block(400, 300),
+            # custom_block(300, 150),
+            # custom_block(150, 100),
+            # custom_block_no_dropout(100, L),
         )
 
         # latent mean and variance
-        self.mean_layer = nn.Linear(L, 2)
-        self.logvar_layer = nn.Linear(L, 2)
+        self.mean_layer = nn.Linear(500, L)
+        self.logvar_layer = nn.Linear(500, L)
 
         # decoder
-        self.decoder = nn.Sequential(
-            custom_block(2, L),
-            custom_block(L, 50),
-            custom_block(50, 100),
-            custom_block(100, 150),
-            custom_block(150, 300),
-            custom_block(300, 400),
-            custom_block(400, 600),
-            custom_block(600, 800),
-            custom_block(800, 1000),
-            custom_block(1000, 1200),
-            custom_block(1200, 1500),
-            custom_block(1500, 2000),
-            custom_block(2000, 2500),
-            custom_block(2500, 3000),
-            custom_block(3000, input_dim),
-            torch.nn.Sigmoid()
+        self.decoder = torch.nn.Sequential(
+            # custom_block(L, 100),
+            # custom_block(100, 150),
+            # custom_block(150, 300),
+            # custom_block(300, 400),
+            # custom_block(400, 600),
+            custom_block(L, 500),
+            custom_block(500, 1000),
+            custom_block(1000, 2000),
+            custom_block_decoder(2000, input_dim)
         )
 
     def encode(self, x):
@@ -55,12 +44,17 @@ class VariationalExample(nn.Module):
         mean, log_var = self.mean_layer(x), self.logvar_layer(x)
         return mean, log_var
 
+
     def get_latent_space(self, x):
-        return self.encoder(x)
+        encoded = self.encoder(x)
+        mean, log_var = self.mean_layer(encoded), self.logvar_layer(encoded)
+        return self.reparameterization(mean, torch.exp(0.5 * log_var)) # log var -> var
+
 
     def reparameterization(self, mean, var):
-        epsilon = torch.randn_like(var)
+        epsilon = torch.randn_like(var).to(self.device)
         z = mean + var * epsilon
+        z = (z - z.min()) / (z.max() - z.min())
         return z
 
     def decode(self, x):
@@ -72,10 +66,23 @@ class VariationalExample(nn.Module):
         x_hat = self.decode(z)
         return x_hat, mean, log_var
 
-def custom_block(input_dim, output_dim, dropout_rate=0.1):
+def custom_block(input_dim, output_dim, dropout_rate=0.15):
     return torch.nn.Sequential(
         torch.nn.Linear(input_dim, output_dim),
         torch.nn.BatchNorm1d(output_dim),
         torch.nn.PReLU(),
         torch.nn.Dropout(dropout_rate)
+    )
+
+def custom_block_encoder(input_dim, output_dim):
+    return torch.nn.Sequential(
+        torch.nn.Linear(input_dim, output_dim),
+        torch.nn.Sigmoid()
+    )
+
+def custom_block_decoder(input_dim, output_dim, dropout_rate = 0.2):
+    return torch.nn.Sequential(
+        torch.nn.Linear(input_dim, output_dim),
+        torch.nn.Dropout(dropout_rate),
+        torch.nn.Sigmoid()
     )
