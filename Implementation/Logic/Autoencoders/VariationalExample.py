@@ -14,7 +14,6 @@ class VariationalExample(nn.Module):
             custom_block(input_dim, 2000),
             custom_block(2000, 1000),
             custom_block(1000, 500),
-
             # custom_block(600, 400),
             # custom_block(400, 300),
             # custom_block(300, 150),
