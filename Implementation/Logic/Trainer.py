@@ -33,13 +33,13 @@ class Trainer:
     """
 
 
-    def __init__(self, models: List[TrainingModel]):
-        self.models = models # list of models
+    def __init__(self, model : TrainingModel):
+        self.model = model
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-    def train(self, idx):
-        tr_model = self.models[idx]
+    def train(self):
+        tr_model = self.model
         tr_model.model.to(self.device)
         tr_model.loss_fn.clear()
         best_validation_loss = float('inf')
@@ -123,22 +123,21 @@ class Trainer:
 
         plot_losses(np.arange(tr_model.epochs+1), loss_dict_tr, loss_dict_val, tr_model.name+"/train_val_loss.png")
 
-    def trainAll(self):
-        for idx in range(len(self.models)):
-            if not self.models[idx].trained:
-                print("Training model: " + str(self.models[idx].name + " with losses: "+ str(self.models[idx].loss_fn.loss_types)))
-                self.train(idx)
+        return best_validation_loss
 
-    def evaluate(self, idx):
-        eval_model = self.models[idx]
+    #def trainAll(self):
+    #    for idx in range(len(self.models)):
+    #        if not self.models[idx].trained:
+    #            print("Training model: " + str(self.models[idx].name + " with losses: "+ str(self.models[idx].loss_fn.loss_types)))
+    #            self.train(idx)
+
+    def evaluate(self):
+        eval_model = self.model
         eval_model.model.eval()
 
         latent_cols = ["Latent " + str(x) for x in list(range(eval_model.L))]
         latent_cols += eval_model.cli_vars
         latent_idxs = np.arange(eval_model.L + len(eval_model.cli_vars))
-
-        # TODO:: delete once done testing
-        tmp_delete = eval_model.data_loader.unroll_batch(eval_model.test_loader, dim = 0)
 
         latent_space_train = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.train_loader, dim = 0))
         latent_space_test = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=0))
@@ -158,9 +157,9 @@ class Trainer:
         demographic_DF = pd.DataFrame()
         demographic_DF['PFS_P'] = yTest['time']
 
-        start = 0.000001
-        stop = 0.1
-        step = 0.000005
+        start = 0.00001#0.00001
+        stop = 0.01
+        step = 0.00004#0.00005
         estimated_alphas = np.arange(start, stop + step, step)
 
         # we remove warnings when coefficients in Cox PH model are 0
@@ -169,7 +168,7 @@ class Trainer:
 
         cv = KFold(n_splits=3, shuffle = True, random_state = 46)
         gcv = GridSearchCV(
-            as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.95, fit_baseline_model = True, max_iter = 250000, normalize = True)),
+            as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.5, fit_baseline_model = True, max_iter = 250000, normalize = True)),
             param_grid = {"estimator__alphas": [[v] for v in estimated_alphas]},
             cv = cv,
             error_score = 0,
@@ -194,7 +193,7 @@ class Trainer:
 
         if non_zero == 0:
             print("All coefficients are 0...")
-            return
+            return np.nan, np.nan
 
         non_zero_coefs = best_coefs.query("coefficient != 0")
         coef_order = non_zero_coefs.abs().sort_values("coefficient").index
@@ -222,19 +221,11 @@ class Trainer:
         va_times = np.arange(min(times), max(times), 0.5)
         cph_auc, _ = cumulative_dynamic_auc(yTrain, yTest, cph_risk_scores, va_times)
 
-        plot_auc(va_times, cph_auc, eval_model.name + "/ROC")
+        meanRes = plot_auc(va_times, cph_auc, eval_model.name + "/ROC")
 
         # Using survival functions, obtain median OR mean and assign it to each patient.
         survival_functions = best_model.predict_survival_function(latent_space_test, best_alpha)
         predicted_times = []
-
-        # TODO :: test time
-        print("TEST TIME:")
-        for i in range(len(survival_functions)):
-            print(i)
-            print(latent_space_test[i])
-            print(survival_functions[i].x)
-            print(survival_functions[i].y)
 
         # TODO:: this must be placed somewhere else in the beginning.
         mode = "Mean"
@@ -250,24 +241,18 @@ class Trainer:
                 predicted_times += [median_value]
 
         demographic_DF['predicted_PFS'] = predicted_times
-        print(demographic_DF)
 
-        for i in range(len(tmp_delete)):
-            print(i)
-            print("original:", tmp_delete[i])
-            print("y:", yTest[i])
-            print("y_pred", predicted_times[i])
+        mseError = evaluate_demographic_data(eval_model, survival_functions, demographic_DF)
 
-        evaluate_demographic_data(eval_model, survival_functions, demographic_DF)
-
-        print("Finished")
+        return meanRes, mseError
 
 
 
 
-    def evaluateAll(self):
-        for idx in range(len(self.models)):
-            self.evaluate(idx)
+    #def evaluateAll(self):
+    #    for idx in range(len(self.models)):
+    #        meanRes, mseError = self.evaluate(idx)
+    #        self.models[idx].
 
 
 
@@ -302,6 +287,7 @@ def plot_tsne_coefs(data, names, dir):
     plt.tight_layout()
     plt.savefig("Results/"+dir)
     plt.clf()
+    plt.close()
     #plt.show()
 
 
@@ -366,6 +352,7 @@ def plot_losses(epochs, data_tr, data_val, dir):
 
     plt.savefig("Results/"+dir)
     plt.clf()
+    plt.close()
 
 def plot_cindex(alphas, mean, std, best_alpha, dir):
     fig, ax = plt.subplots(figsize=(9, 6))
@@ -380,6 +367,7 @@ def plot_cindex(alphas, mean, std, best_alpha, dir):
     plt.title("C-Index of the COX PH model using Train data")
     plt.savefig("Results/"+dir)
     plt.clf()
+    plt.close()
 
 def plot_coefs(non_zero_coefs, coef_order, dir):
     _, ax = plt.subplots(figsize=(6, 8))
@@ -388,11 +376,13 @@ def plot_coefs(non_zero_coefs, coef_order, dir):
     ax.grid(True)
     plt.savefig("Results/"+dir)
     plt.clf()
+    plt.close()
     # plt.show()
 
 def plot_auc(va_times, cph_auc, dir):
+    meanRes = np.mean(cph_auc[~np.isnan(cph_auc)])
     plt.plot(va_times, cph_auc, marker="o")
-    plt.axhline(np.mean(cph_auc[~np.isnan(cph_auc)]), linestyle="--")
+    plt.axhline(meanRes, linestyle="--")
 
     plt.xlabel("months from enrollment")
     plt.ylabel("time-dependent AUC")
@@ -400,6 +390,8 @@ def plot_auc(va_times, cph_auc, dir):
     plt.grid(True)
     plt.savefig("Results/"+dir)
     plt.clf()
+    plt.close()
+    return meanRes
 
 def evaluate_demographic_data(eval_model, survival_functions, demographic_df):
     # Calculate MSE
@@ -460,6 +452,10 @@ def evaluate_demographic_data(eval_model, survival_functions, demographic_df):
     plt.tight_layout()
 
     plt.savefig("Results/"+eval_model.name + "/prediction")
+    plt.clf()
+    plt.close()
+
+    return mse
 
 
 def draw_latent_space(filename, folder, latent_space):

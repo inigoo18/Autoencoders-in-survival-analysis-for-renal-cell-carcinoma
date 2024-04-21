@@ -6,19 +6,20 @@ import torch.optim
 import numpy as np
 import os
 
+from Logic.IterationObject import IterationObject
 from Logic.Losses.LossHandler import LossHandler
 from Logic.Losses.LossType import LossType
 
 
 class TrainingModel():
-    def __init__(self, name, data_loader, cli_vars, model : torch.nn.Module,
+    def __init__(self, name, data_loader, iteration : IterationObject, cli_vars, model : torch.nn.Module,
                  loss_fn : LossHandler, optim: Type[torch.optim.Optimizer], epochs: int, BATCH_SIZE, L, isGNN, load_state = None):
         self.name = name
         self.data_loader = data_loader
-        self.input_dim = data_loader.input_dim()
-        self.train_loader = data_loader.train_loader
-        self.test_loader = data_loader.test_loader
-        self.val_loader = data_loader.val_loader
+        self.input_dim = data_loader.input_dim
+        self.train_loader = iteration.train_data
+        self.test_loader = iteration.test_data
+        self.val_loader = iteration.val_data
 
         self.cli_vars = cli_vars
 

@@ -7,6 +7,7 @@ from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 
 from Logic.CustomDataset import CustomDataset
+from Logic.IterationObject import IterationObject
 
 
 class GraphDataLoader:
@@ -14,7 +15,7 @@ class GraphDataLoader:
     Class that holds the data where the graphs are located.
     """
 
-    def __init__(self, file_path, pred_vars, cli_vars, test_ratio, val_ratio, batch_size):
+    def __init__(self, file_path, pred_vars, cli_vars, test_ratio, val_ratio, batch_size, folds):
         # Load file and convert into float32 since model parameters initialized w/ Pytorch are in float32
         with open(file_path, 'rb') as f:
             graphs = pickle.load(f)
@@ -23,39 +24,39 @@ class GraphDataLoader:
         self.cli_vars = cli_vars
         self.pred_vars = pred_vars
 
+        self.input_dim = len(graphs[0].nodes)
+
         graphs = normalize_data(graphs, cli_vars)
 
-        train_set, test_set, val_set = self.train_test_val_split(graphs, test_ratio, val_ratio)
+        allDatasets = []
 
-        train_loader = self.custom_loader(train_set)
-        test_loader = self.custom_loader(test_set)
-        val_loader = self.custom_loader(val_set)
+        for fold in range(folds):
 
-        self.train_loader = list(create_batches(train_loader, batch_size))
-        self.test_loader = list(create_batches(test_loader, batch_size))
-        self.val_loader = list(create_batches(val_loader, batch_size))
+            graphs = shift_data(graphs, folds)
 
-        self.adjacency_matrix = compute_adjacency_matrix(
-            self.train_loader[0][0][0], self.device)  # we only need one graph as they are all the same.
+            train_set, test_set, val_set = self.train_test_val_split(graphs, test_ratio, val_ratio)
+
+            train_loader = self.custom_loader(train_set)
+            test_loader = self.custom_loader(test_set)
+            val_loader = self.custom_loader(val_set)
+
+            train_loader = list(create_batches(train_loader, batch_size))
+            test_loader = list(create_batches(test_loader, batch_size))
+            val_loader = list(create_batches(val_loader, batch_size))
+
+            it = IterationObject(train_loader, test_loader, val_loader)
+            allDatasets += [it]
+
+        self.allDatasets = allDatasets
+
+        #self.adjacency_matrix = compute_adjacency_matrix(
+        #    self.train_loader[0][0][0], self.device)  # we only need one graph as they are all the same.
 
     def describe_dataframe(self):
         return self.dataframe.describe()
 
     def fetch_columns(self):
         return self.dataframe.columns
-
-    def input_dim(self):
-
-        # K batches
-        # 3 features (CustomDataset) where 0: genData, 1: cliData, 2: labels
-        # N patients
-        # M features
-        # TODO : some analysis
-        #print(len(self.train_loader)) # 15
-        #print(len(self.train_loader[0])) # 3
-        #print(len(self.train_loader[0][0])) # 32
-        #print(len(self.train_loader[0][0][0])) # 2
-        return self.train_loader[0][0][0].x.shape[0]
 
     def custom_loader(self, graphs):
         # we use the method collect_all_graph_data to convert from networkx object to Data object for use in the network
@@ -216,3 +217,11 @@ def compute_adjacency_matrix(data, device):
         adjMatrix[i[0]][i[1]] = 1
     return adjMatrix
 
+def shift_data(graphs, K):
+    size = len(graphs)
+
+    idx = (size // K) * (K - 1)
+
+    lastrows = graphs[idx:]
+    graphs_copy = graphs[:idx]
+    return lastrows + graphs_copy
