@@ -15,7 +15,7 @@ class GraphDataLoader:
     Class that holds the data where the graphs are located.
     """
 
-    def __init__(self, file_path, pred_vars, cli_vars, test_ratio, val_ratio, batch_size, folds):
+    def __init__(self, file_path, pred_vars, cli_vars, test_ratio, val_ratio, batch_size, folds, cohort):
         # Load file and convert into float32 since model parameters initialized w/ Pytorch are in float32
         with open(file_path, 'rb') as f:
             graphs = pickle.load(f)
@@ -25,6 +25,8 @@ class GraphDataLoader:
         self.pred_vars = pred_vars
 
         self.input_dim = len(graphs[0].nodes)
+
+        graphs = filter_cohort(graphs, cohort)
 
         graphs = normalize_data(graphs, cli_vars)
 
@@ -127,7 +129,7 @@ class GraphDataLoader:
             b = False
             if c == 0:
                 b = True
-            result += [(b, p)]
+            result += [(b, round(p/3, 2))]
         return result
 
     def unroll_batch(self, data, dim):
@@ -225,3 +227,13 @@ def shift_data(graphs, K):
     lastrows = graphs[idx:]
     graphs_copy = graphs[:idx]
     return lastrows + graphs_copy
+
+def filter_cohort(graphs, cohort):
+    res = []
+    for g in graphs:
+        if (g.graph['TRT01P'] == cohort):
+            res += [g]
+        del g.graph['TRT01P']
+    if cohort == 'ALL':
+        return graphs
+    return res
