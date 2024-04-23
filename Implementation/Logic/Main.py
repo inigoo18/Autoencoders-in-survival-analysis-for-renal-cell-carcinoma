@@ -18,7 +18,7 @@ from Logic.TrainingModel import TrainingModel
 def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS):
     current_directory = os.getcwd()
     somepath = os.path.abspath(
-        os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_tabular_R3.csv'))
+        os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_tabular_R2.csv'))
     losses = [LossType.DENOISING, LossType.SPARSE_KL, LossType.VARIATIONAL]
 
     combinations = [[]]
@@ -68,7 +68,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
 def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS):
     current_directory = os.getcwd()
     somepath = os.path.abspath(
-        os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_graph_R3.pkl'))
+        os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_graph_R2.pkl'))
 
     losses = [LossType.DENOISING, LossType.SPARSE_KL, LossType.VARIATIONAL] #LossType.VARIATIONAL
 
@@ -155,7 +155,7 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
 
 
 if __name__ == "__main__":
-    option = "Graph"
+    option = "Tabular"
 
     torch.manual_seed(42)
     np.random.seed(42)
@@ -164,9 +164,9 @@ if __name__ == "__main__":
     loss_args = {'noise_factor': 0.05, 'reg_param': 0.1, 'rho': 0.005}
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
-    EPOCHS = 100
+    EPOCHS = 80
     FOLDS = 3
-    COHORTS = ['ALL','Avelumab+Axitinib','Sunitinib'] # ['Avelumab+Axitinib'] # ['ALL','Avelumab+Axitinib','Sunitinib']
+    COHORTS = ['Avelumab+Axitinib','Sunitinib'] # ['Avelumab+Axitinib'] # ['ALL','Avelumab+Axitinib','Sunitinib']
 
     if option == "Tabular":
         BATCH_SIZE = 32
