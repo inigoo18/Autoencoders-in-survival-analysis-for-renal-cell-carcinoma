@@ -111,8 +111,8 @@ class TabularDataLoader:
     def unroll_batch(self, data, dim):
         '''
         Data in any loader is usually ordered by batches. This method helps us unroll said batch and keep only the genetic data
-        :param data:
-        :return:
+        :param data: data ordered by batches
+        :return: all samples in a tensor
         '''
         res = torch.tensor([]).to(self.device)
         for x in data:

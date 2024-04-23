@@ -15,7 +15,20 @@ from Logic.TabularDataLoader import TabularDataLoader
 from Logic.Trainer import Trainer
 from Logic.TrainingModel import TrainingModel
 
+import matplotlib.patches as mpatches
+
 def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS):
+    '''
+        Pipeline for the graph autoencoder. (look at tabular implementation for more comments)
+        :param BATCH_SIZE: size of the batch for the data loader
+        :param L: latent dimensionality
+        :param loss_args: dictionary specifying the value of each loss
+        :param clinicalVars: which are the clinical variables we need to consider
+        :param EPOCHS: number of epochs
+        :param FOLDS: number of folds
+        :param COHORTS: the different cohorts to filter by in the data loader
+        :return: cohortResults, which is a dictionary where for each cohort the results are shown, and the combinations used.
+    '''
     current_directory = os.getcwd()
     somepath = os.path.abspath(
         os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_tabular_R2.csv'))
@@ -31,7 +44,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
     if losses not in combinations:
         combinations += [losses]
 
-    #combinations = [[LossType.DENOISING], [LossType.SPARSE_KL]]
+    combinations = [[LossType.SPARSE_L1], [LossType.SPARSE_KL], [LossType.DENOISING]]
     cohortResults = {}
 
 
@@ -66,6 +79,17 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
 
 
 def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS):
+    '''
+        Pipeline for the graph autoencoder. (look at tabular implementation for more comments)
+        :param BATCH_SIZE: size of the batch for the data loader
+        :param L: latent dimensionality
+        :param loss_args: dictionary specifying the value of each loss
+        :param clinicalVars: which are the clinical variables we need to consider
+        :param EPOCHS: number of epochs
+        :param FOLDS: number of folds
+        :param COHORTS: the different cohorts to filter by in the data loader
+        :return: cohortResults, which is a dictionary where for each cohort the results are shown, and the combinations used.
+    '''
     current_directory = os.getcwd()
     somepath = os.path.abspath(
         os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_graph_R2.pkl'))
@@ -118,37 +142,49 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
 
 
 def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
+    colors = ['skyblue', 'orange', 'green', 'red', 'purple']
+    plt.figure(figsize=(10, 8))
 
-    # Create a larger figure
-    plt.figure(figsize=(10, 8))  # Adjust the figure size as needed+
     print("NAMES")
     print(names)
     print("YS")
     print(ys)
     # plot:
-    for i in range(len(COHORTS)):
-        means = [np.mean(y[~np.isnan(y)]) for y in np.array(ys[i])]
-        stds = [np.std(y[~np.isnan(y)]) for y in np.array(ys[i])]
-        x = np.arange(len(names))
-        plt.errorbar(x + 0.1 * i, means, stds, fmt='o', linewidth=2, capsize=8, label = COHORTS[i])
 
-    plt.xticks(x, names, fontsize=10, rotation=90)
+    for c_idx, cohort in enumerate(ys):
+        off = 0.1
+        if c_idx == 0:
+            off = -off
+        for i, x in enumerate(cohort):
+            plt.boxplot(x, positions=[i + off], patch_artist=True, boxprops=dict(facecolor=colors[c_idx]))
+
+    legend_patches = [mpatches.Patch(color=colors[i], label=COHORTS[i]) for i in range(len(COHORTS))]
+    plt.legend(handles=legend_patches, loc='upper right')  # Adjust legend location
+
+
+    plt.xticks(np.arange(len(names)), names, fontsize=10, rotation=90)
 
     # Set y-axis range from 0 to 1
     if typename == 'ROC':
         plt.ylim(0, 1)
+        plt.yticks(np.arange(0, 1.1, 0.1), fontsize=10)
+    elif typename == 'MSE':
+        plt.ylim(0,10)
+        plt.yticks(np.arange(0, 11, 1), fontsize=10)
+    else:
+        plt.ylim(0,1500)
+        plt.yticks(np.arange(0, 1600, 100), fontsize=10)
 
     # Add labels and title
     plt.xlabel('Component')
     plt.ylabel('Score')
     plt.title('Scores in ' + typename)
-    plt.legend()
     plt.tight_layout()
 
     if typename == 'Reconstruction':
         plt.ylabel('Val. loss')
 
-    plt.savefig("Results/" + "Summary_L"+str(L)+ "_F" + str(FOLDS) + "_" +typename + "_" + str(round(np.mean(means),2)) + ".png")
+    plt.savefig("Results/" + "Summary_L"+str(L)+ "_F" + str(FOLDS) + "_" +typename + ".png")
     plt.clf()
     plt.close()
 
@@ -161,11 +197,11 @@ if __name__ == "__main__":
     np.random.seed(42)
 
     L = 32
-    loss_args = {'noise_factor': 0.05, 'reg_param': 0.1, 'rho': 0.005}
+    loss_args = {'noise_factor': 0.05, 'reg_param': 0.2, 'rho': 0.0001}
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
-    EPOCHS = 80
-    FOLDS = 3
+    EPOCHS = 100
+    FOLDS = 2
     COHORTS = ['Avelumab+Axitinib','Sunitinib'] # ['Avelumab+Axitinib'] # ['ALL','Avelumab+Axitinib','Sunitinib']
 
     if option == "Tabular":

@@ -39,6 +39,10 @@ class Trainer:
 
 
     def train(self):
+        '''
+        This method trains a model.
+        :return: Returns the best validation loss
+        '''
         tr_model = self.model
         tr_model.model.to(self.device)
         tr_model.loss_fn.clear()
@@ -125,13 +129,13 @@ class Trainer:
 
         return best_validation_loss
 
-    #def trainAll(self):
-    #    for idx in range(len(self.models)):
-    #        if not self.models[idx].trained:
-    #            print("Training model: " + str(self.models[idx].name + " with losses: "+ str(self.models[idx].loss_fn.loss_types)))
-    #            self.train(idx)
+
 
     def evaluate(self):
+        '''
+        This method evaluates the model by obtaining the model's latent representation
+        :return:
+        '''
         eval_model = self.model
         eval_model.model.eval()
 
@@ -139,6 +143,7 @@ class Trainer:
         latent_cols += eval_model.cli_vars
         latent_idxs = np.arange(eval_model.L + len(eval_model.cli_vars))
 
+        # Unroll batch lets us obtain the whole loader's data
         latent_space_train = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.train_loader, dim = 0))
         latent_space_test = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=0))
 
