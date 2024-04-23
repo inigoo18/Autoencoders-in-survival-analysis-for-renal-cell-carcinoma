@@ -116,6 +116,8 @@ class GraphDataLoader:
         test_set = list(A_test) + list(B_test)
         val_set = list(A_val) + list(B_val)
 
+        train_set, test_set = validate_test_set(train_set, test_set)
+
         return train_set, test_set, val_set
 
     def prepare_labels(self, dataframe):
@@ -237,3 +239,36 @@ def filter_cohort(graphs, cohort):
     if cohort == 'ALL':
         return graphs
     return res
+
+def validate_test_set(train_set, test_set):
+    uncensoredTrainIdx = -1
+    uncensoredTestIdx = -1
+    censoredTrainIdx = -1
+    censoredTestIdx = -1
+
+    for g in range(len(train_set)):
+        if (uncensoredTrainIdx == -1) or (train_set[g].graph['PFS_P_CNSR'] == 0 and train_set[g].graph['PFS_P'] > uncensoredTrainIdx):
+            uncensoredTrainIdx = g
+        if (censoredTrainIdx == -1) or (train_set[g].graph['PFS_P_CNSR'] == 1 and train_set[g].graph['PFS_P'] > censoredTrainIdx):
+            censoredTrainIdx = g
+
+    for g in range(len(test_set)):
+        if (uncensoredTestIdx == -1) or (test_set[g].graph['PFS_P_CNSR'] == 0 and test_set[g].graph['PFS_P'] > uncensoredTestIdx):
+            uncensoredTestIdx = g
+        if (censoredTestIdx == -1) or (test_set[g].graph['PFS_P_CNSR'] == 1 and test_set[g].graph['PFS_P'] > censoredTestIdx):
+            censoredTestIdx = g
+
+    if train_set[uncensoredTrainIdx].graph['PFS_P'] < test_set[uncensoredTestIdx].graph['PFS_P']:
+        tmp = train_set[uncensoredTrainIdx]
+        train_set[uncensoredTrainIdx] = test_set[uncensoredTestIdx]
+        test_set[uncensoredTestIdx] = tmp
+
+    if train_set[censoredTrainIdx].graph['PFS_P'] < test_set[censoredTestIdx].graph['PFS_P']:
+        tmp = train_set[censoredTrainIdx]
+        train_set[censoredTrainIdx] = test_set[censoredTestIdx]
+        test_set[censoredTestIdx] = tmp
+
+    return train_set, test_set
+
+
+
