@@ -51,8 +51,7 @@ class GraphDataLoader:
 
         self.allDatasets = allDatasets
 
-        #self.adjacency_matrix = compute_adjacency_matrix(
-        #    self.train_loader[0][0][0], self.device)  # we only need one graph as they are all the same.
+        self.adjacency_matrix = compute_adjacency_matrix(train_loader[0][0][0], self.device)  # we only need one graph as they are all the same.
 
     def describe_dataframe(self):
         return self.dataframe.describe()
@@ -214,12 +213,12 @@ def normalize_data(graphs, cliVars):
 
 def compute_adjacency_matrix(data, device):
     print("Computing adjacency matrix of graph with properties: ", data)
-    # compute adjacency matrix as it's a bit costly and this way we do it only once.
-    edges = [(data.edge_index[0][i].item(), data.edge_index[1][i].item()) for i in range(len(data.edge_index[0]))]
-    adjMatrix = torch.zeros(len(data.x), len(data.x)).to(device)
-    for i in edges:
-        adjMatrix[i[0]][i[1]] = 1
-    return adjMatrix
+    coo_indices = data.edge_index
+    adj_matrix = torch.zeros(len(data.x), len(data.x)).to(device)
+    adj_matrix[coo_indices[0], coo_indices[1]] = 1
+    adj_matrix[coo_indices[1], coo_indices[0]] = 1
+    print("Matrix computation done")
+    return adj_matrix
 
 def shift_data(graphs, K):
     size = len(graphs)

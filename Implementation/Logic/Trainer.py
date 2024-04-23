@@ -70,7 +70,8 @@ class Trainer:
                     x_pred_batch = tr_model.model.forward(x_batch)
 
                 # We transform graph -> tabular data. If already tabular, nothing happens.
-                x_batch = tr_model.transform_to_tabular(x_batch)
+                # todo:: the transformation apply it in the compute model loss
+                #x_batch = tr_model.transform_to_tabular(x_batch)
                 
                 # Compute loss for the entire batch
                 loss = tr_model.compute_model_loss(x_batch, x_pred_batch, mu, log_var)
@@ -98,7 +99,7 @@ class Trainer:
                         x_pred_batch = tr_model.model.forward(x_batch)
 
                     # We transform graph -> tabular data. If already tabular, nothing happens.
-                    x_batch = tr_model.transform_to_tabular(x_batch)
+                    #x_batch = tr_model.transform_to_tabular(x_batch)
 
                     # Compute loss for the entire batch
                     loss = tr_model.compute_model_loss(x_batch, x_pred_batch, mu, log_var)

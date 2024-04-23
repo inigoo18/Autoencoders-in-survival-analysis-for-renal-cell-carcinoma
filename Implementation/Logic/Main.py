@@ -56,7 +56,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
             foldObject = FoldObject(comb, FOLDS, d.allDatasets)
             for fold in range(FOLDS):
                 title = "TAB{{L_"+str(L) + "_F_" + str(fold) + "_C_" + cohort + "_" + '+'.join(str(loss.name) for loss in comb)
-                loss_fn = LossHandler(comb, loss_args, None)
+                loss_fn = LossHandler(comb, loss_args)
                 aeModel = MWE_AE(d.input_dim, L)
                 vaeModel = VariationalExample(d.input_dim, L)
                 if LossType.VARIATIONAL in comb:
@@ -106,7 +106,7 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
     if losses not in combinations:
         combinations += [losses]
 
-    #combinations = [[LossType.VARIATIONAL]]
+    combinations = [[]]#[[LossType.VARIATIONAL]]
 
     cohortResults = {}
 
@@ -119,12 +119,12 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
             foldObject = FoldObject(comb, FOLDS, d.allDatasets)
             for fold in range(FOLDS):
                 title = "GPH{{L_"+str(L) + "_F_" + str(fold) + "_C_" + cohort + "_" + '+'.join(str(loss.name) for loss in comb)
-                loss_fn = LossHandler(comb, loss_args, None)
+                loss_fn = LossHandler(comb, loss_args, d.adjacency_matrix)
                 aeModel = GNNExample(1, d.input_dim, L, BATCH_SIZE)
                 vaeModel = GNNVariationalExample(1, d.input_dim, L, BATCH_SIZE)
                 if LossType.VARIATIONAL in comb:
                     aeModel = vaeModel
-                optim = torch.optim.Adam(aeModel.parameters(), lr=0.001)
+                optim = torch.optim.Adam(aeModel.parameters(), lr=0.005)
                 instanceModel = TrainingModel(title, d, foldObject.iterations[fold], clinicalVars,
                                               aeModel, loss_fn, optim, EPOCHS, BATCH_SIZE, L,
                                               True)  # , 'best_model_loss_1478.pth')
@@ -191,7 +191,7 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
 
 
 if __name__ == "__main__":
-    option = "Tabular"
+    option = "Graph"
 
     torch.manual_seed(42)
     np.random.seed(42)

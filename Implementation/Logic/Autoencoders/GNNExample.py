@@ -14,7 +14,8 @@ from Logic.Autoencoders.MinWorkingExample import MWE_AE
 class GNNExample(nn.Module):
     def __init__(self, num_features, input_dim, L, batch_size):
         super(GNNExample, self).__init__()
-        self.conv = SimpleConv(aggr = "median", combine_root = "self_loop") # aggr :: [sum, mean, mul]
+        self.conv = GCNConv(num_features, num_features) # SimpleConv(aggr = "median", combine_root = "self_loop") # aggr :: [sum, mean, mul]
+        self.conv2 = GCNConv(num_features, num_features)
         model = MWE_AE(input_dim, L)
         self.encoder = model.encoder
         self.decoder = model.decoder
@@ -22,13 +23,17 @@ class GNNExample(nn.Module):
         self.input_dim = input_dim
         self.num_features = num_features
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.dropout = nn.Dropout(p=0.25)
+        self.dropout = nn.Dropout(p=0.1)
+        self.prelu = nn.PReLU()
 
     def convolute(self, data):
         xs = torch.tensor([]).to(self.device)
         for i in range(len(data)):
             x, edge_index = data[i].x, data[i].edge_index
             h = self.conv(x, edge_index)
+            h = self.prelu(h)
+            h = self.dropout(h)
+            h = self.conv2(h, edge_index)
             h = h.tanh()
             h = self.dropout(h)
             xs = torch.cat([xs, h])
