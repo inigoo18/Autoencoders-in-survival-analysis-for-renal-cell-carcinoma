@@ -99,7 +99,7 @@ if __name__ == "__main__":
    RADIUSES = [1,2,3,4,5,7]
    clinicalFeatures = ['PFS_P', 'PFS_P_CNSR', 'MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA',
                        'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
-                       'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
+                       'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA', 'TRT01P']
 
    for R in RADIUSES:
       print()

@@ -15,7 +15,7 @@ class GraphDataLoader:
     Class that holds the data where the graphs are located.
     """
 
-    def __init__(self, file_path, pred_vars, cli_vars, test_ratio, val_ratio, batch_size, folds):
+    def __init__(self, file_path, pred_vars, cli_vars, test_ratio, val_ratio, batch_size, folds, cohort):
         # Load file and convert into float32 since model parameters initialized w/ Pytorch are in float32
         with open(file_path, 'rb') as f:
             graphs = pickle.load(f)
@@ -25,6 +25,8 @@ class GraphDataLoader:
         self.pred_vars = pred_vars
 
         self.input_dim = len(graphs[0].nodes)
+
+        graphs = filter_cohort(graphs, cohort)
 
         graphs = normalize_data(graphs, cli_vars)
 
@@ -114,6 +116,8 @@ class GraphDataLoader:
         test_set = list(A_test) + list(B_test)
         val_set = list(A_val) + list(B_val)
 
+        train_set, test_set = validate_test_set(train_set, test_set)
+
         return train_set, test_set, val_set
 
     def prepare_labels(self, dataframe):
@@ -127,7 +131,7 @@ class GraphDataLoader:
             b = False
             if c == 0:
                 b = True
-            result += [(b, p)]
+            result += [(b, round(p/3, 2))]
         return result
 
     def unroll_batch(self, data, dim):
@@ -225,3 +229,46 @@ def shift_data(graphs, K):
     lastrows = graphs[idx:]
     graphs_copy = graphs[:idx]
     return lastrows + graphs_copy
+
+def filter_cohort(graphs, cohort):
+    res = []
+    for g in graphs:
+        if (g.graph['TRT01P'] == cohort):
+            res += [g]
+        del g.graph['TRT01P']
+    if cohort == 'ALL':
+        return graphs
+    return res
+
+def validate_test_set(train_set, test_set):
+    uncensoredTrainIdx = -1
+    uncensoredTestIdx = -1
+    censoredTrainIdx = -1
+    censoredTestIdx = -1
+
+    for g in range(len(train_set)):
+        if (uncensoredTrainIdx == -1) or (train_set[g].graph['PFS_P_CNSR'] == 0 and train_set[g].graph['PFS_P'] > uncensoredTrainIdx):
+            uncensoredTrainIdx = g
+        if (censoredTrainIdx == -1) or (train_set[g].graph['PFS_P_CNSR'] == 1 and train_set[g].graph['PFS_P'] > censoredTrainIdx):
+            censoredTrainIdx = g
+
+    for g in range(len(test_set)):
+        if (uncensoredTestIdx == -1) or (test_set[g].graph['PFS_P_CNSR'] == 0 and test_set[g].graph['PFS_P'] > uncensoredTestIdx):
+            uncensoredTestIdx = g
+        if (censoredTestIdx == -1) or (test_set[g].graph['PFS_P_CNSR'] == 1 and test_set[g].graph['PFS_P'] > censoredTestIdx):
+            censoredTestIdx = g
+
+    if train_set[uncensoredTrainIdx].graph['PFS_P'] < test_set[uncensoredTestIdx].graph['PFS_P']:
+        tmp = train_set[uncensoredTrainIdx]
+        train_set[uncensoredTrainIdx] = test_set[uncensoredTestIdx]
+        test_set[uncensoredTestIdx] = tmp
+
+    if train_set[censoredTrainIdx].graph['PFS_P'] < test_set[censoredTestIdx].graph['PFS_P']:
+        tmp = train_set[censoredTrainIdx]
+        train_set[censoredTrainIdx] = test_set[censoredTestIdx]
+        test_set[censoredTestIdx] = tmp
+
+    return train_set, test_set
+
+
+

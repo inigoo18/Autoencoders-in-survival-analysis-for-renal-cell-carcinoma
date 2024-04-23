@@ -15,15 +15,19 @@ class TabularDataLoader:
     Class that holds the DataFrame where the tabular data is located.
     """
 
-    def __init__(self, file_path, pred_vars, cli_vars, test_ratio, val_ratio, batch_size, folds):
+    def __init__(self, file_path, pred_vars, cli_vars, test_ratio, val_ratio, batch_size, folds, cohort):
         # Load file and convert into float32 since model parameters initialized w/ Pytorch are in float32
-        dataframe = pd.read_csv(file_path, sep=',', index_col=0).astype('float32')
+        dataframe = pd.read_csv(file_path, sep=',', index_col=0)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         self.cli_vars = cli_vars
         self.pred_vars = pred_vars
 
+        dataframe = filter_cohort(dataframe, cohort)
+
         self.input_dim = len(dataframe.columns) - len(cli_vars) - len(pred_vars)
+
+        dataframe = dataframe.astype('float32')
 
         dataframe = normalize_data(dataframe, cli_vars)
 
@@ -86,6 +90,8 @@ class TabularDataLoader:
         test_set = tabular_data.loc[test_indices]
         val_set = tabular_data.loc[val_indices]
 
+        train_set, test_set = validate_test_set(train_set, test_set)
+
         return train_set, test_set, val_set
 
     def prepare_labels(self, dataframe):
@@ -99,7 +105,7 @@ class TabularDataLoader:
             b = False
             if c == 0:
                 b = True
-            result += [(b, p)]
+            result += [(b, round(p/3, 2))]
         return result
 
     def unroll_batch(self, data, dim):
@@ -155,3 +161,46 @@ def shift_data(df, K):
     df_copy = df_copy.drop(lastRows.index)
     df_copy = pd.concat([lastRows, df_copy])
     return df_copy
+
+def filter_cohort(df, cohort):
+    if cohort == 'ALL':
+        return df.drop('TRT01P', axis = 1)
+    df = df[df['TRT01P'] == cohort] #TRT01P is the feature for cohort
+    df = df.drop('TRT01P', axis = 1) # we remove the feature as we no longer need it.
+    return df
+
+def swap_patients(train_df, test_df, train_pat, test_pat):
+    train_df_t = train_df.drop(train_pat.name)
+    test_df_t = test_df.drop(test_pat.name)
+    train_df = train_df_t.loc[test_pat.name] = test_pat
+    test_df = test_df_t.loc[train_pat.name] = train_pat
+    return train_df_t, test_df_t
+
+def validate_test_set(train_df, test_df):
+    '''
+    Train data should have the largest PFS, both in censored and uncensored. During the KFold process, if this were not
+    the case, we need to swap patients around for this condition to hold.
+    :param train_df: train df
+    :param test_df: test df
+    :return: train and test correctly validated.
+    '''
+    train_UncensoredPFS = train_df[train_df['PFS_P_CNSR'] == 0]['PFS_P']
+    train_CensoredPFS = train_df[train_df['PFS_P_CNSR'] == 1]['PFS_P']
+
+    test_UncensoredPFS = test_df[test_df['PFS_P_CNSR'] == 0]['PFS_P']
+    test_CensoredPFS = test_df[test_df['PFS_P_CNSR'] == 1]['PFS_P']
+
+    if (max(test_CensoredPFS) > max(train_CensoredPFS)):
+        # swap max test with max train
+        test_pat = test_df.loc[test_CensoredPFS.idxmax()]
+        train_pat = train_df.loc[train_CensoredPFS.idxmax()]
+        train_df, test_df = swap_patients(train_df, test_df, train_pat, test_pat)
+
+
+    if (max(test_UncensoredPFS) > max(train_UncensoredPFS)):
+        # swap max test with max train
+        test_pat = test_df.loc[test_UncensoredPFS.idxmax()]
+        train_pat = train_df.loc[train_UncensoredPFS.idxmax()]
+        train_df, test_df = swap_patients(train_df, test_df, train_pat, test_pat)
+
+    return train_df, test_df

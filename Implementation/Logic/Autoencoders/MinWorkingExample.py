@@ -13,23 +13,15 @@ class MWE_AE(torch.nn.Module):
         self.encoder = torch.nn.Sequential(
             custom_block(input_dim, 2000),
             custom_block(2000, 1000),
-            custom_block(1000, 500),
-            custom_block_encoder(500, L)
-            #custom_block(600, 400),
-            #custom_block(400, 300),
-            #custom_block(300, 150),
-            #custom_block(150, 100),
-            #custom_block_no_dropout(100, L),
+            custom_block(1000, 800),
+            custom_block(800, 600),
+            custom_block_encoder(600, L)
         )
 
         self.decoder = torch.nn.Sequential(
-            #custom_block(L, 100),
-            #custom_block(100, 150),
-            #custom_block(150, 300),
-            #custom_block(300, 400),
-            #custom_block(400, 600),
-            custom_block(L, 500),
-            custom_block(500, 1000),
+            custom_block(L, 600),
+            custom_block(600, 800),
+            custom_block(800, 1000),
             custom_block(1000, 2000),
             custom_block_decoder(2000, input_dim)
         )
@@ -44,7 +36,7 @@ class MWE_AE(torch.nn.Module):
         return self.encoder(x)
 
 
-def custom_block(input_dim, output_dim, dropout_rate=0.3):
+def custom_block(input_dim, output_dim, dropout_rate=0.25):
     return torch.nn.Sequential(
         torch.nn.Linear(input_dim, output_dim),
         torch.nn.BatchNorm1d(output_dim),
@@ -52,13 +44,14 @@ def custom_block(input_dim, output_dim, dropout_rate=0.3):
         torch.nn.Tanh(),
     )
 
-def custom_block_encoder(input_dim, output_dim):
+def custom_block_encoder(input_dim, output_dim, dropout_rate = 0.1):
     return torch.nn.Sequential(
         torch.nn.Linear(input_dim, output_dim),
+        torch.nn.Dropout(dropout_rate),
         torch.nn.Sigmoid()
     )
 
-def custom_block_decoder(input_dim, output_dim, dropout_rate = 0.2):
+def custom_block_decoder(input_dim, output_dim, dropout_rate = 0.1):
     return torch.nn.Sequential(
         torch.nn.Linear(input_dim, output_dim),
         torch.nn.Dropout(dropout_rate),
