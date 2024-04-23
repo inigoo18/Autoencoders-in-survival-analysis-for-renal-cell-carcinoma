@@ -249,13 +249,6 @@ class Trainer:
 
 
 
-    #def evaluateAll(self):
-    #    for idx in range(len(self.models)):
-    #        meanRes, mseError = self.evaluate(idx)
-    #        self.models[idx].
-
-
-
 def plot_tsne_coefs(data, names, dir):
     print("Applying tSNE on data with following variables:")
     for i in names:
