@@ -31,7 +31,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
     '''
     current_directory = os.getcwd()
     somepath = os.path.abspath(
-        os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_tabular_R2.csv'))
+        os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_tabular_R3.csv'))
     losses = [LossType.DENOISING, LossType.SPARSE_KL, LossType.VARIATIONAL]
 
     combinations = [[]]
@@ -92,9 +92,9 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
     '''
     current_directory = os.getcwd()
     somepath = os.path.abspath(
-        os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_graph_R2.pkl'))
+        os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_graph_R3.pkl'))
 
-    losses = [LossType.DENOISING, LossType.SPARSE_KL, LossType.VARIATIONAL] #LossType.VARIATIONAL
+    losses = [LossType.DENOISING, LossType.SPARSE_KL] #LossType.VARIATIONAL
 
     combinations = [[]]
     combinations.extend([[loss] for loss in losses])
@@ -106,7 +106,7 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
     if losses not in combinations:
         combinations += [losses]
 
-    combinations = [[]]#[[LossType.VARIATIONAL]]
+    #combinations = [[]]#[[LossType.VARIATIONAL]]
 
     cohortResults = {}
 
