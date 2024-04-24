@@ -163,9 +163,9 @@ class Trainer:
         demographic_DF = pd.DataFrame()
         demographic_DF['PFS_P'] = yTest['time']
 
-        start = 0.00001#0.00001
+        start = 0.000001#0.00001
         stop = 0.01
-        step = 0.00004#0.00005
+        step = 0.000004#0.00005
         estimated_alphas = np.arange(start, stop + step, step)
 
         # we remove warnings when coefficients in Cox PH model are 0

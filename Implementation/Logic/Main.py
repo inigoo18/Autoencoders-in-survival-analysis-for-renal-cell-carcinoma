@@ -32,7 +32,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
     current_directory = os.getcwd()
     somepath = os.path.abspath(
         os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_tabular_R3.csv'))
-    losses = [LossType.DENOISING, LossType.SPARSE_KL, LossType.VARIATIONAL]
+    losses = [LossType.DENOISING, LossType.SPARSE_KL]
 
     combinations = [[]]
     combinations.extend([[loss] for loss in losses])
@@ -44,7 +44,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
     if losses not in combinations:
         combinations += [losses]
 
-    combinations = [[]]
+    combinations = [[LossType.SPARSE_KL]]
     cohortResults = {}
 
 
@@ -145,12 +145,14 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
     colors = ['skyblue', 'orange', 'green', 'red', 'purple']
     plt.figure(figsize=(10, 8))
 
+    print("ys: ", ys)
+
     for c_idx, cohort in enumerate(ys):
         off = 0.1
         if c_idx == 0:
             off = -off
         for i, x in enumerate(cohort):
-            plt.boxplot(x, positions=[i + off], patch_artist=True, boxprops=dict(facecolor=colors[c_idx]))
+            plt.boxplot(x[~np.isnan(x)], positions=[i + off], patch_artist=True, boxprops=dict(facecolor=colors[c_idx]))
 
     legend_patches = [mpatches.Patch(color=colors[i], label=COHORTS[i]) for i in range(len(COHORTS))]
     plt.legend(handles=legend_patches, loc='upper right')  # Adjust legend location
@@ -184,13 +186,13 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
 
 
 if __name__ == "__main__":
-    option = "Graph"
+    option = "Tabular"
 
     torch.manual_seed(42)
     np.random.seed(42)
 
-    L = 128
-    loss_args = {'noise_factor': 0.05, 'reg_param': 0.2, 'rho': 0.0001}
+    L = 64
+    loss_args = {'noise_factor': 0.05, 'reg_param': 0.4, 'rho': 0.01}
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
     EPOCHS = 60
@@ -198,10 +200,10 @@ if __name__ == "__main__":
     COHORTS = ['Avelumab+Axitinib','Sunitinib'] # ['Avelumab+Axitinib'] # ['ALL','Avelumab+Axitinib','Sunitinib']
 
     if option == "Tabular":
-        BATCH_SIZE = 32
+        BATCH_SIZE = 16
         foldObjects, combinations = tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS)
     else:
-        BATCH_SIZE = 32
+        BATCH_SIZE = 16
         foldObjects, combinations = graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS)
 
     namedCombs = [[str(x) for x in y] for y in combinations]

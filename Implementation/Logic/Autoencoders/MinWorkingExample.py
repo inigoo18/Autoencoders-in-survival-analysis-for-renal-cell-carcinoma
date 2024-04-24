@@ -27,7 +27,6 @@ class MWE_AE(torch.nn.Module):
 
     def forward(self, x):
         encoded = self.encoder(x)
-
         decoded = self.decoder(encoded)
         return decoded
 
@@ -35,23 +34,23 @@ class MWE_AE(torch.nn.Module):
         return self.encoder(x)
 
 
-def custom_block(input_dim, output_dim, dropout_rate=0.2):
+def custom_block(input_dim, output_dim, dropout_rate=0.15):
     return torch.nn.Sequential(
         torch.nn.Linear(input_dim, output_dim),
         torch.nn.BatchNorm1d(output_dim),
-        torch.nn.Dropout(dropout_rate),
         torch.nn.Tanh(),
+        torch.nn.Dropout(dropout_rate),
         #torch.nn.Tanh(),
     )
 
-def custom_block_encoder(input_dim, output_dim, dropout_rate = 0.1):
+def custom_block_encoder(input_dim, output_dim, dropout_rate = 0.05):
     return torch.nn.Sequential(
         torch.nn.Linear(input_dim, output_dim),
         torch.nn.Sigmoid(),
         torch.nn.Dropout(dropout_rate),
     )
 
-def custom_block_decoder(input_dim, output_dim, dropout_rate = 0.1):
+def custom_block_decoder(input_dim, output_dim, dropout_rate = 0.05):
     return torch.nn.Sequential(
         torch.nn.Linear(input_dim, output_dim),
         torch.nn.Sigmoid(),
