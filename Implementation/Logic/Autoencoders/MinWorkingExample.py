@@ -19,9 +19,7 @@ class MWE_AE(torch.nn.Module):
         )
 
         self.decoder = torch.nn.Sequential(
-            custom_block(L, 600),
-            custom_block(600, 800),
-            custom_block(800, 1000),
+            custom_block(L, 1000),
             custom_block(1000, 2000),
             custom_block_decoder(2000, input_dim)
         )
@@ -41,19 +39,19 @@ def custom_block(input_dim, output_dim, dropout_rate=0.25):
         torch.nn.Linear(input_dim, output_dim),
         torch.nn.BatchNorm1d(output_dim),
         torch.nn.Dropout(dropout_rate),
-        torch.nn.Tanh(),
+        torch.nn.ReLU(),
+        #torch.nn.Tanh(),
     )
 
-def custom_block_encoder(input_dim, output_dim, dropout_rate = 0.1):
+def custom_block_encoder(input_dim, output_dim):
     return torch.nn.Sequential(
         torch.nn.Linear(input_dim, output_dim),
-        torch.nn.Dropout(dropout_rate),
-        torch.nn.Sigmoid()
+        torch.nn.Sigmoid(),
     )
 
 def custom_block_decoder(input_dim, output_dim, dropout_rate = 0.1):
     return torch.nn.Sequential(
         torch.nn.Linear(input_dim, output_dim),
+        torch.nn.Sigmoid(),
         torch.nn.Dropout(dropout_rate),
-        torch.nn.Sigmoid()
     )

@@ -174,7 +174,7 @@ class Trainer:
 
         cv = KFold(n_splits=3, shuffle = True, random_state = 46)
         gcv = GridSearchCV(
-            as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.5, fit_baseline_model = True, max_iter = 250000, normalize = True)),
+            as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.8, fit_baseline_model = True, max_iter = 250000, normalize = True)),
             param_grid = {"estimator__alphas": [[v] for v in estimated_alphas]},
             cv = cv,
             error_score = 0,

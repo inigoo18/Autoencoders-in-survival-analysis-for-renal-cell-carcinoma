@@ -115,8 +115,6 @@ class LossHandler():
                 adjacency_pred = torch.ger(x_i, x_i.t())
                 adjacency_loss += nn.BCEWithLogitsLoss()(adjacency_pred.flatten(), self.adj_matrix.flatten())
 
-            #print("Feature error: ", total_loss)
-            #print("Adjacency error: ", adjacency_loss)
             total_loss += adjacency_loss
 
 

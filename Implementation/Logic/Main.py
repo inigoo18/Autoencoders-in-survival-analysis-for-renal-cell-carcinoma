@@ -124,7 +124,7 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
                 vaeModel = GNNVariationalExample(1, d.input_dim, L, BATCH_SIZE)
                 if LossType.VARIATIONAL in comb:
                     aeModel = vaeModel
-                optim = torch.optim.Adam(aeModel.parameters(), lr=0.005)
+                optim = torch.optim.Adam(aeModel.parameters(), lr=0.001)
                 instanceModel = TrainingModel(title, d, foldObject.iterations[fold], clinicalVars,
                                               aeModel, loss_fn, optim, EPOCHS, BATCH_SIZE, L,
                                               True)  # , 'best_model_loss_1478.pth')
@@ -145,12 +145,6 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
     colors = ['skyblue', 'orange', 'green', 'red', 'purple']
     plt.figure(figsize=(10, 8))
 
-    print("NAMES")
-    print(names)
-    print("YS")
-    print(ys)
-    # plot:
-
     for c_idx, cohort in enumerate(ys):
         off = 0.1
         if c_idx == 0:
@@ -160,7 +154,6 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
 
     legend_patches = [mpatches.Patch(color=colors[i], label=COHORTS[i]) for i in range(len(COHORTS))]
     plt.legend(handles=legend_patches, loc='upper right')  # Adjust legend location
-
 
     plt.xticks(np.arange(len(names)), names, fontsize=10, rotation=90)
 
@@ -196,12 +189,12 @@ if __name__ == "__main__":
     torch.manual_seed(42)
     np.random.seed(42)
 
-    L = 32
+    L = 128
     loss_args = {'noise_factor': 0.05, 'reg_param': 0.2, 'rho': 0.0001}
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
-    EPOCHS = 100
-    FOLDS = 2
+    EPOCHS = 60
+    FOLDS = 3
     COHORTS = ['Avelumab+Axitinib','Sunitinib'] # ['Avelumab+Axitinib'] # ['ALL','Avelumab+Axitinib','Sunitinib']
 
     if option == "Tabular":
