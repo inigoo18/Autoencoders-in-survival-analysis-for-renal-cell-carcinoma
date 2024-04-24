@@ -32,7 +32,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
     current_directory = os.getcwd()
     somepath = os.path.abspath(
         os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_tabular_R3.csv'))
-    losses = [LossType.DENOISING, LossType.SPARSE_KL]
+    losses = [LossType.DENOISING]#, LossType.SPARSE_KL, LossType.VARIATIONAL]
 
     combinations = [[]]
     combinations.extend([[loss] for loss in losses])
@@ -44,7 +44,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
     if losses not in combinations:
         combinations += [losses]
 
-    combinations = [[LossType.SPARSE_KL]]
+    #combinations = [[LossType.SPARSE_KL]]
     cohortResults = {}
 
 
@@ -94,7 +94,7 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
     somepath = os.path.abspath(
         os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_graph_R3.pkl'))
 
-    losses = [LossType.DENOISING, LossType.SPARSE_KL] #LossType.VARIATIONAL
+    losses = [LossType.DENOISING, LossType.SPARSE_KL, LossType.VARIATIONAL]
 
     combinations = [[]]
     combinations.extend([[loss] for loss in losses])
@@ -106,7 +106,7 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
     if losses not in combinations:
         combinations += [losses]
 
-    #combinations = [[]]#[[LossType.VARIATIONAL]]
+    combinations = [[LossType.DENOISING]]#[[LossType.VARIATIONAL]]
 
     cohortResults = {}
 
@@ -145,7 +145,7 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
     colors = ['skyblue', 'orange', 'green', 'red', 'purple']
     plt.figure(figsize=(10, 8))
 
-    print("ys: ", ys)
+    ys = np.array(ys)
 
     for c_idx, cohort in enumerate(ys):
         off = 0.1
@@ -186,16 +186,16 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
 
 
 if __name__ == "__main__":
-    option = "Tabular"
+    option = "Graph"
 
     torch.manual_seed(42)
     np.random.seed(42)
 
     L = 64
-    loss_args = {'noise_factor': 0.05, 'reg_param': 0.4, 'rho': 0.01}
+    loss_args = {'noise_factor': 0.01, 'reg_param': 0.4, 'rho': 0.01}
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
-    EPOCHS = 60
+    EPOCHS = 40
     FOLDS = 3
     COHORTS = ['Avelumab+Axitinib','Sunitinib'] # ['Avelumab+Axitinib'] # ['ALL','Avelumab+Axitinib','Sunitinib']
 
