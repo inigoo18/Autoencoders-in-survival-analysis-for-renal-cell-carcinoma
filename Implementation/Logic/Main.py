@@ -31,8 +31,8 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
     '''
     current_directory = os.getcwd()
     somepath = os.path.abspath(
-        os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_tabular_R2.csv'))
-    losses = [LossType.DENOISING, LossType.SPARSE_KL, LossType.VARIATIONAL]
+        os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_tabular_R3.csv'))
+    losses = [LossType.DENOISING]#, LossType.SPARSE_KL, LossType.VARIATIONAL]
 
     combinations = [[]]
     combinations.extend([[loss] for loss in losses])
@@ -44,7 +44,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
     if losses not in combinations:
         combinations += [losses]
 
-    combinations = [[LossType.SPARSE_L1], [LossType.SPARSE_KL], [LossType.DENOISING]]
+    #combinations = [[LossType.SPARSE_KL]]
     cohortResults = {}
 
 
@@ -56,7 +56,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
             foldObject = FoldObject(comb, FOLDS, d.allDatasets)
             for fold in range(FOLDS):
                 title = "TAB{{L_"+str(L) + "_F_" + str(fold) + "_C_" + cohort + "_" + '+'.join(str(loss.name) for loss in comb)
-                loss_fn = LossHandler(comb, loss_args, None)
+                loss_fn = LossHandler(comb, loss_args)
                 aeModel = MWE_AE(d.input_dim, L)
                 vaeModel = VariationalExample(d.input_dim, L)
                 if LossType.VARIATIONAL in comb:
@@ -92,9 +92,9 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
     '''
     current_directory = os.getcwd()
     somepath = os.path.abspath(
-        os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_graph_R2.pkl'))
+        os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_graph_R3.pkl'))
 
-    losses = [LossType.DENOISING, LossType.SPARSE_KL, LossType.VARIATIONAL] #LossType.VARIATIONAL
+    losses = [LossType.DENOISING, LossType.SPARSE_KL, LossType.VARIATIONAL]
 
     combinations = [[]]
     combinations.extend([[loss] for loss in losses])
@@ -106,7 +106,7 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
     if losses not in combinations:
         combinations += [losses]
 
-    #combinations = [[LossType.VARIATIONAL]]
+    combinations = [[LossType.DENOISING]]#[[LossType.VARIATIONAL]]
 
     cohortResults = {}
 
@@ -119,7 +119,7 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
             foldObject = FoldObject(comb, FOLDS, d.allDatasets)
             for fold in range(FOLDS):
                 title = "GPH{{L_"+str(L) + "_F_" + str(fold) + "_C_" + cohort + "_" + '+'.join(str(loss.name) for loss in comb)
-                loss_fn = LossHandler(comb, loss_args, None)
+                loss_fn = LossHandler(comb, loss_args, d.adjacency_matrix)
                 aeModel = GNNExample(1, d.input_dim, L, BATCH_SIZE)
                 vaeModel = GNNVariationalExample(1, d.input_dim, L, BATCH_SIZE)
                 if LossType.VARIATIONAL in comb:
@@ -145,22 +145,17 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
     colors = ['skyblue', 'orange', 'green', 'red', 'purple']
     plt.figure(figsize=(10, 8))
 
-    print("NAMES")
-    print(names)
-    print("YS")
-    print(ys)
-    # plot:
+    ys = np.array(ys)
 
     for c_idx, cohort in enumerate(ys):
         off = 0.1
         if c_idx == 0:
             off = -off
         for i, x in enumerate(cohort):
-            plt.boxplot(x, positions=[i + off], patch_artist=True, boxprops=dict(facecolor=colors[c_idx]))
+            plt.boxplot(x[~np.isnan(x)], positions=[i + off], patch_artist=True, boxprops=dict(facecolor=colors[c_idx]))
 
     legend_patches = [mpatches.Patch(color=colors[i], label=COHORTS[i]) for i in range(len(COHORTS))]
     plt.legend(handles=legend_patches, loc='upper right')  # Adjust legend location
-
 
     plt.xticks(np.arange(len(names)), names, fontsize=10, rotation=90)
 
@@ -191,24 +186,24 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
 
 
 if __name__ == "__main__":
-    option = "Tabular"
+    option = "Graph"
 
     torch.manual_seed(42)
     np.random.seed(42)
 
-    L = 32
-    loss_args = {'noise_factor': 0.05, 'reg_param': 0.2, 'rho': 0.0001}
+    L = 64
+    loss_args = {'noise_factor': 0.01, 'reg_param': 0.4, 'rho': 0.01}
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
-    EPOCHS = 100
-    FOLDS = 2
+    EPOCHS = 40
+    FOLDS = 3
     COHORTS = ['Avelumab+Axitinib','Sunitinib'] # ['Avelumab+Axitinib'] # ['ALL','Avelumab+Axitinib','Sunitinib']
 
     if option == "Tabular":
-        BATCH_SIZE = 32
+        BATCH_SIZE = 16
         foldObjects, combinations = tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS)
     else:
-        BATCH_SIZE = 32
+        BATCH_SIZE = 16
         foldObjects, combinations = graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS)
 
     namedCombs = [[str(x) for x in y] for y in combinations]

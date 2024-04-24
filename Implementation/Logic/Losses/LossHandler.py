@@ -9,7 +9,7 @@ from Logic.Losses.LossType import LossType
 
 class LossHandler():
 
-    def __init__(self, loss_types, args, adjMatrix = None):
+    def __init__(self, loss_types, args, adj_matrix = None):
         self.loss_types = loss_types
         self.args = args
         self.loss_dict_tr = {}  # here we keep count of the different losses we have
@@ -22,7 +22,7 @@ class LossHandler():
                 self.loss_dict_val[str(loss_type)] = []
         self.check_arguments()
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.adjMatrix = adjMatrix
+        self.adj_matrix = adj_matrix
 
     def check_arguments(self):
         keys = []
@@ -98,19 +98,24 @@ class LossHandler():
 
     def compute_loss(self, mode, X, predX, params = None, mean = None, log_var = None):
         total_loss = 0
-        if self.adjMatrix is None:
+        if self.adj_matrix is None:
             criterion = nn.MSELoss(reduction='sum')
             total_loss = criterion(X, predX)
         else:
             criterion = nn.MSELoss(reduction = 'sum')
-            total_loss = criterion(X, predX)
-            #total_loss = 0
-            # TODO :: when this works, maybe we can remove the batch and concatenate the adjMatrices
-            #for item in predX: # each item in batch
-            #    reshaped_tensor = torch.reshape(item, (len(item), 1))
-            #    recons_matrix = torch.matmul(reshaped_tensor, reshaped_tensor.t())
-            #    total_loss += criterion(recons_matrix, self.adjMatrix)
-            #total_loss = total_loss / len(predX)
+
+            x_features = torch.reshape(X.x, (predX.shape[0], predX.shape[1]))
+
+            total_loss = criterion(x_features, predX)
+
+
+            # Calculate BCE loss
+            adjacency_loss = 0
+            for x_i in predX:
+                adjacency_pred = torch.ger(x_i, x_i.t())
+                adjacency_loss += nn.BCEWithLogitsLoss()(adjacency_pred.flatten(), self.adj_matrix.flatten())
+
+            total_loss += adjacency_loss
 
 
         self._add_loss(mode, 'MSE', total_loss)

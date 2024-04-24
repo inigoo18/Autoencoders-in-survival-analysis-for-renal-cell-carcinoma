@@ -9,34 +9,24 @@ class VariationalExample(nn.Module):
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        # encoder
         self.encoder = torch.nn.Sequential(
             custom_block(input_dim, 2000),
             custom_block(2000, 1000),
             custom_block(1000, 500),
-            # custom_block(600, 400),
-            # custom_block(400, 300),
-            # custom_block(300, 150),
-            # custom_block(150, 100),
-            # custom_block_no_dropout(100, L),
+            custom_block_encoder(500, L)
+        )
+
+        self.decoder = torch.nn.Sequential(
+            custom_block(L, 500),
+            custom_block(500, 1000),
+            custom_block(1000, 2000),
+            custom_block_decoder(2000, input_dim)
         )
 
         # latent mean and variance
         self.mean_layer = nn.Linear(500, L)
         self.logvar_layer = nn.Linear(500, L)
 
-        # decoder
-        self.decoder = torch.nn.Sequential(
-            # custom_block(L, 100),
-            # custom_block(100, 150),
-            # custom_block(150, 300),
-            # custom_block(300, 400),
-            # custom_block(400, 600),
-            custom_block(L, 500),
-            custom_block(500, 1000),
-            custom_block(1000, 2000),
-            custom_block_decoder(2000, input_dim)
-        )
 
     def encode(self, x):
         x = self.encoder(x)
@@ -53,7 +43,7 @@ class VariationalExample(nn.Module):
     def reparameterization(self, mean, var):
         epsilon = torch.randn_like(var).to(self.device)
         z = mean + var * epsilon
-        z = (z - z.min()) / (z.max() - z.min())
+        #z = (z - z.min()) / (z.max() - z.min())
         return z
 
     def decode(self, x):
