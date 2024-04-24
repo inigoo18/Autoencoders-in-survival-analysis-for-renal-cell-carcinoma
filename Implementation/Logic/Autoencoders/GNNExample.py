@@ -15,7 +15,6 @@ class GNNExample(nn.Module):
     def __init__(self, num_features, input_dim, L, batch_size):
         super(GNNExample, self).__init__()
         self.conv = GCNConv(num_features, num_features) # SimpleConv(aggr = "median", combine_root = "self_loop") # aggr :: [sum, mean, mul]
-        self.conv2 = GCNConv(num_features, num_features)
         model = MWE_AE(input_dim, L)
         self.encoder = model.encoder
         self.decoder = model.decoder

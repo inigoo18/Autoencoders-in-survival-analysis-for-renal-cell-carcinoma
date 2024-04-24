@@ -44,7 +44,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
     if losses not in combinations:
         combinations += [losses]
 
-    combinations = [[LossType.SPARSE_L1], [LossType.SPARSE_KL], [LossType.DENOISING]]
+    combinations = [[]]
     cohortResults = {}
 
 

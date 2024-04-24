@@ -13,15 +13,13 @@ class MWE_AE(torch.nn.Module):
         self.encoder = torch.nn.Sequential(
             custom_block(input_dim, 2000),
             custom_block(2000, 1000),
-            custom_block(1000, 800),
-            custom_block(800, 600),
-            custom_block_encoder(600, L)
+            custom_block(1000, 500),
+            custom_block_encoder(500, L)
         )
 
         self.decoder = torch.nn.Sequential(
             custom_block(L, 1000),
-            custom_block(1000, 2000),
-            custom_block_decoder(2000, input_dim)
+            custom_block_decoder(1000, input_dim)
         )
 
     def forward(self, x):
