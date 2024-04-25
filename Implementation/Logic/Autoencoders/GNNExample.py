@@ -32,7 +32,7 @@ class GNNExample(nn.Module):
         for i in range(len(data)):
             x, edge_index = data[i].x, data[i].edge_index
             h = self.conv(x, edge_index)
-            h = h.relu()
+            h = self.lrelu(h)
             h = self.dropout(h)
             xs = torch.cat([xs, h])
         return xs

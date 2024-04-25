@@ -32,7 +32,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
     current_directory = os.getcwd()
     somepath = os.path.abspath(
         os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_tabular_R3.csv'))
-    losses = [LossType.DENOISING]#, LossType.SPARSE_KL, LossType.VARIATIONAL]
+    losses = [LossType.DENOISING, LossType.SPARSE_KL, LossType.VARIATIONAL]
 
     combinations = [[]]
     combinations.extend([[loss] for loss in losses])
@@ -169,8 +169,8 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
         plt.ylim(0,10)
         plt.yticks(np.arange(0, 11, 1), fontsize=10)
     else:
-        plt.ylim(0,1500)
-        plt.yticks(np.arange(0, 1600, 100), fontsize=10)
+        plt.ylim(0,500)
+        plt.yticks(np.arange(0, 550, 50), fontsize=10)
 
     # Add labels and title
     plt.xlabel('Component')
