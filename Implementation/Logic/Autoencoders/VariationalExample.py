@@ -13,7 +13,6 @@ class VariationalExample(nn.Module):
             custom_block(input_dim, 2000),
             custom_block(2000, 1000),
             custom_block(1000, 500),
-            custom_block_encoder(500, L)
         )
 
         self.decoder = torch.nn.Sequential(
@@ -43,7 +42,7 @@ class VariationalExample(nn.Module):
     def reparameterization(self, mean, var):
         epsilon = torch.randn_like(var).to(self.device)
         z = mean + var * epsilon
-        #z = (z - z.min()) / (z.max() - z.min())
+        z = (z - z.min()) / (z.max() - z.min())
         return z
 
     def decode(self, x):

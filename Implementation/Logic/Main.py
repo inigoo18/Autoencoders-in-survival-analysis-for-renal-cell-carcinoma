@@ -71,6 +71,8 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
                 foldObject.Reconstruction += [bestValLoss]
                 foldObject.MSE += [mseError]
                 foldObject.ROC += [meanRes]
+                with torch.no_grad():
+                    torch.cuda.empty_cache()
             foldObjects += [foldObject]
         cohortResults[cohort] = foldObjects
     return cohortResults, combinations
@@ -106,7 +108,7 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
     if losses not in combinations:
         combinations += [losses]
 
-    combinations = [[LossType.DENOISING]]#[[LossType.VARIATIONAL]]
+    #combinations = [[LossType.DENOISING]]#[[LossType.VARIATIONAL]]
 
     cohortResults = {}
 
@@ -195,7 +197,7 @@ if __name__ == "__main__":
     loss_args = {'noise_factor': 0.01, 'reg_param': 0.4, 'rho': 0.01}
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
-    EPOCHS = 40
+    EPOCHS = 50
     FOLDS = 3
     COHORTS = ['Avelumab+Axitinib','Sunitinib'] # ['Avelumab+Axitinib'] # ['ALL','Avelumab+Axitinib','Sunitinib']
 

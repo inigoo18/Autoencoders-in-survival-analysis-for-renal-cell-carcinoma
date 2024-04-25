@@ -16,9 +16,9 @@ class GNNVariationalExample(nn.Module):
         super(GNNVariationalExample, self).__init__()
         self.conv = GCNConv(num_features,
                             num_features)  # SimpleConv(aggr = "median", combine_root = "self_loop") # aggr :: [sum, mean, mul]
-        model = VariationalExample(input_dim, L)
-        self.encoder = model.encoder
-        self.decoder = model.decoder
+        self.model = VariationalExample(input_dim, L)
+        self.encoder = self.model.encoder
+        self.decoder = self.model.decoder
         self.batch_size = batch_size
         self.input_dim = input_dim
         self.num_features = num_features
