@@ -148,8 +148,8 @@ class Trainer:
         latent_space_test = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=0))
 
         # We add clinical variables
-        latent_space_train = np.concatenate((latent_space_train.cpu().detach().numpy(), eval_model.data_loader.unroll_batch(eval_model.train_loader, dim=1).cpu().detach().numpy()), axis = 1)
-        latent_space_test = np.concatenate((latent_space_test.cpu().detach().numpy(), eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=1).cpu().detach().numpy()), axis = 1)
+        # latent_space_train = np.concatenate((latent_space_train.cpu().detach().numpy(), eval_model.data_loader.unroll_batch(eval_model.train_loader, dim=1).cpu().detach().numpy()), axis = 1)
+        # latent_space_test = np.concatenate((latent_space_test.cpu().detach().numpy(), eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=1).cpu().detach().numpy()), axis = 1)
 
         yTrain = eval_model.data_loader.unroll_batch(eval_model.train_loader, dim=2).cpu().detach().numpy()
         yTrain = np.array([(bool(event), float(time)) for event, time in yTrain], dtype=[('event', bool), ('time', float)])
@@ -162,18 +162,18 @@ class Trainer:
         demographic_DF = pd.DataFrame()
         demographic_DF['PFS_P'] = yTest['time']
 
-        start = 0.00001#0.00001
+        start = 0.0001#0.00001
         stop = 0.1
-        step = 0.00004#0.00005
+        step = 0.0003#0.00005
         estimated_alphas = np.arange(start, stop + step, step)
 
         # we remove warnings when coefficients in Cox PH model are 0
         warnings.simplefilter("ignore", UserWarning)
         warnings.simplefilter("ignore", FitFailedWarning)
 
-        cv = KFold(n_splits=3, shuffle = True, random_state = 46)
+        cv = KFold(n_splits=5, shuffle = True, random_state = 46)
         gcv = GridSearchCV(
-            as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.5, fit_baseline_model = True, max_iter = 250000, normalize = True)),
+            as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.9, fit_baseline_model = True, max_iter = 300000, normalize = True)),
             param_grid = {"estimator__alphas": [[v] for v in estimated_alphas]},
             cv = cv,
             error_score = 0,

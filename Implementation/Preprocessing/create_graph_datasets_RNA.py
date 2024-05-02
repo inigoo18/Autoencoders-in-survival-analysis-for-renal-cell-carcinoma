@@ -38,7 +38,6 @@ def create_tabular_dataset(ppi, clinicalFeatures = []):
    return df
 
 def create_samples_graphs(genData, cliData, G, clinicalFeatures = []):
-
    '''
    Create a graph for each sample in the dataset, using nodes and edges 
    attributes obtained previously from genetic variants information.

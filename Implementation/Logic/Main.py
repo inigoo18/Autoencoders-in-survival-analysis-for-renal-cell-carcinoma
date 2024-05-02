@@ -15,6 +15,8 @@ from Logic.TabularDataLoader import TabularDataLoader
 from Logic.Trainer import Trainer
 from Logic.TrainingModel import TrainingModel
 
+import xlsxwriter
+
 import matplotlib.patches as mpatches
 
 def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS):
@@ -32,7 +34,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
     current_directory = os.getcwd()
     somepath = os.path.abspath(
         os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_tabular_R3.csv'))
-    losses = [LossType.DENOISING, LossType.SPARSE_KL, LossType.VARIATIONAL]
+    losses = [LossType.DENOISING, LossType.SPARSE_KL]#, LossType.VARIATIONAL]
 
     combinations = [[]]
     combinations.extend([[loss] for loss in losses])
@@ -44,7 +46,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
     if losses not in combinations:
         combinations += [losses]
 
-    #combinations = [[LossType.SPARSE_KL]]
+    combinations = [[], [LossType.DENOISING], [LossType.SPARSE_KL], [LossType.VARIATIONAL], [LossType.DENOISING, LossType.SPARSE_KL]]
     cohortResults = {}
 
 
@@ -108,8 +110,7 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
     if losses not in combinations:
         combinations += [losses]
 
-    #combinations = [[LossType.DENOISING]]#[[LossType.VARIATIONAL]]
-
+    combinations = [[], [LossType.DENOISING], [LossType.SPARSE_KL], [LossType.VARIATIONAL], [LossType.DENOISING, LossType.SPARSE_KL]]#[[LossType.VARIATIONAL]]
     cohortResults = {}
 
     for cohort in COHORTS:
@@ -149,6 +150,8 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
 
     ys = np.array(ys)
 
+    convert_to_excel(names, ys, typename, L, FOLDS, COHORTS)
+
     for c_idx, cohort in enumerate(ys):
         off = 0.1
         if c_idx == 0:
@@ -166,11 +169,11 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
         plt.ylim(0, 1)
         plt.yticks(np.arange(0, 1.1, 0.1), fontsize=10)
     elif typename == 'MSE':
-        plt.ylim(0,10)
-        plt.yticks(np.arange(0, 11, 1), fontsize=10)
+        plt.ylim(0,15)
+        plt.yticks(np.arange(0, 16, 1), fontsize=10)
     else:
-        plt.ylim(0,500)
-        plt.yticks(np.arange(0, 550, 50), fontsize=10)
+        plt.ylim(0,300)
+        plt.yticks(np.arange(0, 325, 25), fontsize=10)
 
     # Add labels and title
     plt.xlabel('Component')
@@ -186,9 +189,51 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
     plt.close()
 
 
+def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS):
+
+    print("EXCEL")
+    print(ys)
+    print(names)
+
+    workbook = xlsxwriter.Workbook("Results/" + "Excel_L" + str(L) + "_F" + str(FOLDS) + "_" + typename + ".xlsx")
+    worksheet = workbook.add_worksheet()
+
+    bold_format = workbook.add_format({'bold': True, 'bg_color': '#DDDDDD'})
+
+    row = 0
+    col = 0
+
+    worksheet.write(row, col, 'Cohort', bold_format)
+    col += 1
+    worksheet.write(row, col, 'Type', bold_format)
+    col += 1
+    for c_f in range(FOLDS):
+        worksheet.write(row, col, 'Fold ' + str(c_f), bold_format)
+        col += 1
+    row += 1
+    col = 0
+
+    for c_idx, cohort in enumerate(ys):
+        worksheet.write(row, col, COHORTS[c_idx], bold_format)
+        col += 1
+        for i, foldX in enumerate(cohort):
+            worksheet.write(row, col, str(names[i]))
+            for x in foldX:
+                col += 1
+                strToInsert = x
+                if np.isnan(x):
+                    strToInsert = "-"
+                worksheet.write(row, col, strToInsert)
+            col = 1
+            row += 1
+        col = 0
+
+    workbook.close()
+
+
 
 if __name__ == "__main__":
-    option = "Graph"
+    option = "Tabular"
 
     torch.manual_seed(42)
     np.random.seed(42)
@@ -197,8 +242,8 @@ if __name__ == "__main__":
     loss_args = {'noise_factor': 0.01, 'reg_param': 0.4, 'rho': 0.01}
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
-    EPOCHS = 50
-    FOLDS = 3
+    EPOCHS = 60
+    FOLDS = 5
     COHORTS = ['Avelumab+Axitinib','Sunitinib'] # ['Avelumab+Axitinib'] # ['ALL','Avelumab+Axitinib','Sunitinib']
 
     if option == "Tabular":
