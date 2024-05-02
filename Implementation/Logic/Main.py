@@ -234,6 +234,7 @@ def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS):
 
 if __name__ == "__main__":
     option = "Tabular"
+    WITH_HISTOLOGY = False
 
     torch.manual_seed(42)
     np.random.seed(42)
@@ -242,9 +243,12 @@ if __name__ == "__main__":
     loss_args = {'noise_factor': 0.01, 'reg_param': 0.4, 'rho': 0.01}
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
-    EPOCHS = 60
+    EPOCHS = 50
     FOLDS = 5
     COHORTS = ['Avelumab+Axitinib','Sunitinib'] # ['Avelumab+Axitinib'] # ['ALL','Avelumab+Axitinib','Sunitinib']
+
+    if WITH_HISTOLOGY is False:
+        clinicalVars = []
 
     if option == "Tabular":
         BATCH_SIZE = 16

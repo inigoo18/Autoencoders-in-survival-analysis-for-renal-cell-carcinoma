@@ -72,6 +72,13 @@ def create_samples_graphs(genData, cliData, G, clinicalFeatures = []):
 
 
 if __name__ == "__main__":
+
+   CONSIDER_HISTOLOGY = False
+   RADIUSES = [1, 2, 3, 4, 5, 7]
+   clinicalFeatures = ['PFS_P', 'PFS_P_CNSR', 'MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA',
+                       'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
+                       'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA', 'TRT01P']
+
    current_directory = os.getcwd()
 
    # Obtain list of genes of interest from the tsv downloaded in disgenet
@@ -81,10 +88,18 @@ if __name__ == "__main__":
    G = pd.read_csv(disgenet_target, sep='\t')
    genes = list(set(G['Gene'].values))
 
-   expression_target = os.path.abspath(
-      os.path.join(current_directory, '..', '..', 'Data', 'output_GeneticData.csv'))
-   clinical_target = os.path.abspath(
-      os.path.join(current_directory, '..', '..', 'Data', 'output_ClinicalData.csv'))
+   if CONSIDER_HISTOLOGY:
+      expression_target = os.path.abspath(
+         os.path.join(current_directory, '..', '..', 'Data', 'output_GeneticDataWithHistology.csv')) # 650 patients
+      clinical_target = os.path.abspath(
+         os.path.join(current_directory, '..', '..', 'Data', 'output_ClinicalDataWithHistology.csv'))
+   else:
+      expression_target = os.path.abspath(
+         os.path.join(current_directory, '..', '..', 'Data', 'output_GeneticData.csv')) # 738 patients
+      clinical_target = os.path.abspath(
+         os.path.join(current_directory, '..', '..', 'Data', 'output_ClinicalData.csv'))
+      clinicalFeatures = ['PFS_P', 'PFS_P_CNSR', 'TRT01P']
+
 
    # expression data
    expression_data = pd.read_csv(expression_target, sep = ',', index_col=0)
@@ -94,11 +109,6 @@ if __name__ == "__main__":
    expression_data = expression_data.loc[:, (q3_values >= 4) | (expression_data.median() >= 2)]
 
    clinical_data = pd.read_csv(clinical_target, sep=',', index_col=0)
-
-   RADIUSES = [1,2,3,4,5,7]
-   clinicalFeatures = ['PFS_P', 'PFS_P_CNSR', 'MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA',
-                       'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
-                       'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA', 'TRT01P']
 
    for R in RADIUSES:
       print()
@@ -117,12 +127,16 @@ if __name__ == "__main__":
       # Tabular dataset with expression data for each patient
       tabular_data = create_tabular_dataset(variants_gd, clinicalFeatures)
 
+      addon_str = ""
+      if CONSIDER_HISTOLOGY:
+         addon_str = "_withHIST"
+
       # Next, we save it as pickle files
       output_target_graph = os.path.abspath(
-         os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_graph_R'+str(R)+'.pkl'))
+         os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_graph_R'+str(R)+ addon_str+'.pkl'))
 
       output_target_tabular = os.path.abspath(
-         os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_tabular_R'+str(R)+'.csv'))
+         os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_tabular_R'+str(R)+ addon_str+'.csv'))
 
       print("Characteristics of the tabular dataset ("+str(R)+ ") :")
       print("Number of rows: ", tabular_data.shape[0])
