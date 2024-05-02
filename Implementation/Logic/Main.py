@@ -19,7 +19,7 @@ import xlsxwriter
 
 import matplotlib.patches as mpatches
 
-def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS):
+def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS, WITH_HISTOLOGY):
     '''
         Pipeline for the graph autoencoder. (look at tabular implementation for more comments)
         :param BATCH_SIZE: size of the batch for the data loader
@@ -67,7 +67,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
                 instanceModel = TrainingModel(title, d, foldObject.iterations[fold], clinicalVars,
                                             aeModel, loss_fn, optim, EPOCHS, BATCH_SIZE, L, False)#, 'best_model_loss_1478.pth')
 
-                trainer = Trainer(instanceModel)
+                trainer = Trainer(instanceModel, WITH_HISTOLOGY)
                 bestValLoss = trainer.train()
                 meanRes, mseError = trainer.evaluate()
                 foldObject.Reconstruction += [bestValLoss]
@@ -82,7 +82,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
 
 
 
-def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS):
+def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS, WITH_HISTOLOGY):
     '''
         Pipeline for the graph autoencoder. (look at tabular implementation for more comments)
         :param BATCH_SIZE: size of the batch for the data loader
@@ -132,7 +132,7 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
                                               aeModel, loss_fn, optim, EPOCHS, BATCH_SIZE, L,
                                               True)  # , 'best_model_loss_1478.pth')
 
-                trainer = Trainer(instanceModel)
+                trainer = Trainer(instanceModel, WITH_HISTOLOGY)
                 bestValLoss = trainer.train()
                 meanRes, mseError = trainer.evaluate()
                 foldObject.Reconstruction += [bestValLoss]
@@ -243,8 +243,8 @@ if __name__ == "__main__":
     loss_args = {'noise_factor': 0.01, 'reg_param': 0.4, 'rho': 0.01}
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
-    EPOCHS = 50
-    FOLDS = 5
+    EPOCHS = 9
+    FOLDS = 3
     COHORTS = ['Avelumab+Axitinib','Sunitinib'] # ['Avelumab+Axitinib'] # ['ALL','Avelumab+Axitinib','Sunitinib']
 
     if WITH_HISTOLOGY is False:
@@ -252,10 +252,10 @@ if __name__ == "__main__":
 
     if option == "Tabular":
         BATCH_SIZE = 16
-        foldObjects, combinations = tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS)
+        foldObjects, combinations = tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS, WITH_HISTOLOGY)
     else:
         BATCH_SIZE = 16
-        foldObjects, combinations = graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS)
+        foldObjects, combinations = graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS, WITH_HISTOLOGY)
 
     namedCombs = [[str(x) for x in y] for y in combinations]
     foldMSE = [[fold.MSE for fold in foldObjects[cohort]] for cohort in COHORTS]

@@ -33,9 +33,10 @@ class Trainer:
     """
 
 
-    def __init__(self, model : TrainingModel):
+    def __init__(self, model : TrainingModel, WITH_HISTOLOGY : bool):
         self.model = model
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.WITH_HISTOLOGY = WITH_HISTOLOGY
 
 
     def train(self):
@@ -144,12 +145,13 @@ class Trainer:
         latent_idxs = np.arange(eval_model.L + len(eval_model.cli_vars))
 
         # Unroll batch lets us obtain the whole loader's data
-        latent_space_train = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.train_loader, dim = 0))
-        latent_space_test = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=0))
+        latent_space_train = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.train_loader, dim = 0)).cpu().detach().numpy()
+        latent_space_test = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=0)).cpu().detach().numpy()
 
         # We add clinical variables
-        # latent_space_train = np.concatenate((latent_space_train.cpu().detach().numpy(), eval_model.data_loader.unroll_batch(eval_model.train_loader, dim=1).cpu().detach().numpy()), axis = 1)
-        # latent_space_test = np.concatenate((latent_space_test.cpu().detach().numpy(), eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=1).cpu().detach().numpy()), axis = 1)
+        if self.WITH_HISTOLOGY:
+            latent_space_train = np.concatenate((latent_space_train.cpu().detach().numpy(), eval_model.data_loader.unroll_batch(eval_model.train_loader, dim=1)), axis = 1)
+            latent_space_test = np.concatenate((latent_space_test.cpu().detach().numpy(), eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=1)), axis = 1)
 
         yTrain = eval_model.data_loader.unroll_batch(eval_model.train_loader, dim=2).cpu().detach().numpy()
         yTrain = np.array([(bool(event), float(time)) for event, time in yTrain], dtype=[('event', bool), ('time', float)])
@@ -162,43 +164,53 @@ class Trainer:
         demographic_DF = pd.DataFrame()
         demographic_DF['PFS_P'] = yTest['time']
 
-        start = 0.0001#0.00001
+        TRIES = 3
+        non_zero = 0
+        offset = 0.1
+
+        start = 0.0001  # 0.00001
         stop = 0.1
-        step = 0.0003#0.00005
-        estimated_alphas = np.arange(start, stop + step, step)
+        step = 0.0002  # 0.00005
 
-        # we remove warnings when coefficients in Cox PH model are 0
-        warnings.simplefilter("ignore", UserWarning)
-        warnings.simplefilter("ignore", FitFailedWarning)
+        while non_zero == 0 and TRIES > 0:
+            estimated_alphas = np.arange(start, stop + step, step)
 
-        cv = KFold(n_splits=5, shuffle = True, random_state = 46)
-        gcv = GridSearchCV(
-            as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.9, fit_baseline_model = True, max_iter = 300000, normalize = True)),
-            param_grid = {"estimator__alphas": [[v] for v in estimated_alphas]},
-            cv = cv,
-            error_score = 0,
-            n_jobs = 5,
-        ).fit(latent_space_train, yTrain)
+            # we remove warnings when coefficients in Cox PH model are 0
+            warnings.simplefilter("ignore", UserWarning)
+            warnings.simplefilter("ignore", FitFailedWarning)
 
-        cv_results = pd.DataFrame(gcv.cv_results_)
+            cv = KFold(n_splits=5, shuffle = True, random_state = 46)
+            gcv = GridSearchCV(
+                as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.9, fit_baseline_model = True, max_iter = 300000, normalize = True)),
+                param_grid = {"estimator__alphas": [[v] for v in estimated_alphas]},
+                cv = cv,
+                error_score = 0,
+                n_jobs = 5,
+            ).fit(latent_space_train, yTrain)
 
-        alphas = cv_results.param_estimator__alphas.map(lambda x: x[0])
-        mean = cv_results.mean_test_score
-        std = cv_results.std_test_score
+            cv_results = pd.DataFrame(gcv.cv_results_)
 
-        best_model = gcv.best_estimator_.estimator
-        best_coefs = pd.DataFrame(best_model.coef_, index=latent_cols, columns=["coefficient"])
-        best_alpha = gcv.best_params_["estimator__alphas"][0]
+            alphas = cv_results.param_estimator__alphas.map(lambda x: x[0])
+            mean = cv_results.mean_test_score
+            std = cv_results.std_test_score
 
-        plot_cindex(alphas, mean, std, best_alpha, eval_model.name + "/c-index")
+            best_model = gcv.best_estimator_.estimator
+            best_coefs = pd.DataFrame(best_model.coef_, index=latent_cols, columns=["coefficient"])
+            best_alpha = gcv.best_params_["estimator__alphas"][0]
+
+            plot_cindex(alphas, mean, std, best_alpha, eval_model.name + "/c-index")
 
 
-        non_zero = np.sum(best_coefs.iloc[:, 0] != 0)
-        print(f"Number of non-zero coefficients: {non_zero}")
+            non_zero = np.sum(best_coefs.iloc[:, 0] != 0)
+            print(f"Number of non-zero coefficients: {non_zero}")
 
-        if non_zero == 0:
-            print("All coefficients are 0...")
-            return np.nan, np.nan
+            if non_zero == 0:
+                TRIES -= 1
+                start *= offset
+                step *= offset
+                print("All coefficients are 0... Tries left: " + str(TRIES) + " with start: " + str(start))
+                if TRIES == 0:
+                    return np.nan, np.nan
 
         non_zero_coefs = best_coefs.query("coefficient != 0")
         coef_order = non_zero_coefs.abs().sort_values("coefficient").index
