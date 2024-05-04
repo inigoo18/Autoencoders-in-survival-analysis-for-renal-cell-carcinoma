@@ -168,9 +168,9 @@ class Trainer:
         non_zero = 0
         offset = 0.1
 
-        start = 0.001  # 0.00001
-        stop = 0.1
-        step = 0.002  # 0.00005
+        start = 0.0001  # 0.00001
+        stop = 0.05
+        step = 0.0002  # 0.00005
 
         while non_zero == 0 and TRIES > 0:
             estimated_alphas = np.arange(start, stop + step, step)
