@@ -2,6 +2,9 @@ import numpy as np
 import os
 import torch
 import matplotlib.pyplot as plt
+import math
+
+from scipy.stats import f_oneway
 
 from Logic.Autoencoders.GNNExample import GNNExample
 from Logic.Autoencoders.GNNVariationalExample import GNNVariationalExample
@@ -150,7 +153,12 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
 
     ys = np.array(ys)
 
-    convert_to_excel(names, ys, typename, L, FOLDS, COHORTS)
+    pvalues = []
+    for i in range(len(ys[0])):
+        xs = [sublist[i] for sublist in ys]
+        pvalues += [f_oneway(xs[0], xs[1])[1]]
+
+    convert_to_excel(names, ys, typename, L, FOLDS, COHORTS, pvalues)
 
     for c_idx, cohort in enumerate(ys):
         off = 0.1
@@ -189,16 +197,19 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
     plt.close()
 
 
-def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS):
+def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS, pvalues):
 
     print("EXCEL")
     print(ys)
     print(names)
+    print(pvalues)
 
     workbook = xlsxwriter.Workbook("Results/" + "Excel_L" + str(L) + "_F" + str(FOLDS) + "_" + typename + ".xlsx")
     worksheet = workbook.add_worksheet()
 
     bold_format = workbook.add_format({'bold': True, 'bg_color': '#DDDDDD'})
+    green_format = workbook.add_format({'bold': True, 'bg_color': '#AAFF00'})
+    red_format = workbook.add_format({'bold': True, 'bg_color': '#EE4B2B'})
 
     row = 0
     col = 0
@@ -227,6 +238,27 @@ def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS):
             col = 1
             row += 1
         col = 0
+
+    col = 2 + FOLDS + 2
+    row = 0
+
+    worksheet.write(row, col, 'Type', bold_format)
+    col += 1
+    worksheet.write(row, col, 'P-value (avelumab + axitinib vs sunitinib)', bold_format)
+    row += 1
+    col -= 1
+    for c_idx, pvalue in enumerate(pvalues):
+        col = 2 + FOLDS + 2
+        worksheet.write(row, col, str(names[c_idx]))
+        col += 1
+        frmt = red_format
+        if pvalue <= 0.05:
+            frmt = green_format
+        if not math.isnan(pvalue):
+            worksheet.write(row, col, pvalue, frmt)
+        else:
+            worksheet.write(row, col, 'N/A')
+        row += 1
 
     workbook.close()
 
