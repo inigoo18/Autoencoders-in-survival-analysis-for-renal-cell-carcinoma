@@ -153,12 +153,17 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
 
     ys = np.array(ys)
 
-    pvalues = []
+    pvalues_cohort = []
     for i in range(len(ys[0])):
         xs = [sublist[i] for sublist in ys]
-        pvalues += [f_oneway(xs[0], xs[1])[1]]
+        pvalues_cohort += [f_oneway(xs[0], xs[1])[1]]
 
-    convert_to_excel(names, ys, typename, L, FOLDS, COHORTS, pvalues)
+    pvalues_model = []
+    for idx_c, cohort in enumerate(ys):
+        for i in range(len(ys[0]) - 1):
+            pvalues_model += [f_oneway(cohort[0], cohort[i + 1])[1]]
+
+    convert_to_excel(names, ys, typename, L, FOLDS, COHORTS, pvalues_cohort, pvalues_model)
 
     for c_idx, cohort in enumerate(ys):
         off = 0.1
@@ -197,12 +202,13 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
     plt.close()
 
 
-def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS, pvalues):
+def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS, pvalues_cohort, pvalues_model):
 
     print("EXCEL")
     print(ys)
     print(names)
-    print(pvalues)
+    print(pvalues_cohort)
+    print(pvalues_model)
 
     workbook = xlsxwriter.Workbook("Results/" + "Excel_L" + str(L) + "_F" + str(FOLDS) + "_" + typename + ".xlsx")
     worksheet = workbook.add_worksheet()
@@ -221,6 +227,7 @@ def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS, pvalues):
     for c_f in range(FOLDS):
         worksheet.write(row, col, 'Fold ' + str(c_f), bold_format)
         col += 1
+    worksheet.write(row, col, 'P-value', bold_format)
     row += 1
     col = 0
 
@@ -235,6 +242,18 @@ def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS, pvalues):
                 if np.isnan(x):
                     strToInsert = "-"
                 worksheet.write(row, col, strToInsert)
+            if str(names[i]) == '[]':
+                worksheet.write(row, col, '-')
+            else:
+                pvalue = pvalues_model.pop(0)
+                frmt = red_format
+                if pvalue <= 0.05:
+                    frmt = green_format
+                if not math.isnan(pvalue):
+                    worksheet.write(row, col, pvalue, frmt)
+                else:
+                    worksheet.write(row, col, 'N/A')
+
             col = 1
             row += 1
         col = 0
@@ -247,7 +266,7 @@ def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS, pvalues):
     worksheet.write(row, col, 'P-value (avelumab + axitinib vs sunitinib)', bold_format)
     row += 1
     col -= 1
-    for c_idx, pvalue in enumerate(pvalues):
+    for c_idx, pvalue in enumerate(pvalues_cohort):
         col = 2 + FOLDS + 2
         worksheet.write(row, col, str(names[c_idx]))
         col += 1
