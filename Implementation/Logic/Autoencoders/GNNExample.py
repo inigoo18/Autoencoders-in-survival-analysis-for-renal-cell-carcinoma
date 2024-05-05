@@ -22,7 +22,7 @@ class GNNExample(nn.Module):
         self.input_dim = input_dim
         self.num_features = num_features
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.dropout = nn.Dropout(p=0.15)
+        self.dropout = nn.Dropout(p=0.05)
         self.lrelu = nn.LeakyReLU()
         self.batchNorm = nn.BatchNorm1d(num_features)
 

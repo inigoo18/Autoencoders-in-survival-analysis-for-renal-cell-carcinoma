@@ -169,9 +169,9 @@ class Trainer:
         non_zero = 0
         offset = 0.1
 
-        start = 0.00001
+        start = 0.000001
         stop = 0.01
-        step = 0.00002
+        step = 0.000005
 
         while non_zero == 0 and TRIES > 0:
             estimated_alphas = np.arange(start, stop + step, step)
@@ -182,11 +182,11 @@ class Trainer:
 
             cv = KFold(n_splits=5, shuffle = True, random_state = 46)
             gcv = GridSearchCV(
-                as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.5, fit_baseline_model = True, max_iter = 350000, normalize = False)),
+                as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.1, fit_baseline_model = True, max_iter = 100000, normalize = False)),
                 param_grid = {"estimator__alphas": [[v] for v in estimated_alphas]},
                 cv = cv,
                 error_score = 0,
-                n_jobs = 5,
+                n_jobs = -1,
             ).fit(latent_space_train, yTrain)
 
             cv_results = pd.DataFrame(gcv.cv_results_)
