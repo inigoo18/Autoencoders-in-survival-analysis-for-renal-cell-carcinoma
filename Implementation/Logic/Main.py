@@ -66,7 +66,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
                 vaeModel = VariationalExample(d.input_dim, L)
                 if LossType.VARIATIONAL in comb:
                     aeModel = vaeModel
-                optim = torch.optim.Adam(aeModel.parameters(), lr = 0.001)
+                optim = torch.optim.Adam(aeModel.parameters(), lr = 0.0001)
                 instanceModel = TrainingModel(title, d, foldObject.iterations[fold], clinicalVars,
                                             aeModel, loss_fn, optim, EPOCHS, BATCH_SIZE, L, False)#, 'best_model_loss_1478.pth')
 

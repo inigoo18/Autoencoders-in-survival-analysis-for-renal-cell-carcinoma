@@ -38,7 +38,7 @@ class MWE_AE(torch.nn.Module):
         return self.encoder(x)
 
 
-def custom_block(input_dim, output_dim, dropout_rate=0.15):
+def custom_block(input_dim, output_dim, dropout_rate=0.2):
     return torch.nn.Sequential(
         torch.nn.Linear(input_dim, output_dim),
         torch.nn.BatchNorm1d(output_dim),
