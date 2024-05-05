@@ -57,7 +57,7 @@ class TabularDataLoader:
         DF_cli = DF[self.cli_vars].values
         pred_vals = self.prepare_labels(DF[self.pred_vars])
 
-        cd = CustomDataset(torch.tensor(DF_gen).to(self.device), torch.tensor(DF_cli).to(self.device), torch.tensor(pred_vals).to(self.device))
+        cd = CustomDataset(torch.tensor(DF_gen).to(self.device), torch.tensor(DF_cli), torch.tensor(pred_vals))
         return cd
 
     def train_test_val_split(self, tabular_data, test_ratio, val_ratio):
@@ -116,7 +116,7 @@ class TabularDataLoader:
         '''
         res = torch.tensor([]).to(self.device)
         for x in data:
-            res = torch.cat((res, x[dim]), dim = 0)
+            res = torch.cat((res, x[dim].to(self.device)), dim = 0)
         return res
 
 

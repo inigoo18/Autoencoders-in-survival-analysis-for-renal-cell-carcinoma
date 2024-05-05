@@ -30,7 +30,7 @@ class GNNVariationalExample(nn.Module):
     def convolute(self, data):
         xs = torch.tensor([]).to(self.device)
         for i in range(len(data)):
-            x, edge_index = data[i].x, data[i].edge_index
+            x, edge_index = data[i].x.to(self.device), data[i].edge_index.to(self.device)
             h = self.conv(x, edge_index)
             h = self.batchNorm(h)  # todo:: if no good results, remove batchnorm and tanh and put relu instead
             h = h.tanh()

@@ -148,7 +148,7 @@ class GraphDataLoader:
         else:
             res = torch.tensor([]).to(self.device)
             for x in data:
-                res = torch.cat((res, x[dim]), dim=0)
+                res = torch.cat((res, x[dim].to(self.device)), dim=0)
             return res
 
 
