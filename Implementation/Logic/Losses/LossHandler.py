@@ -104,7 +104,7 @@ class LossHandler():
         else:
             criterion = nn.MSELoss(reduction = 'sum')
 
-            x_features = torch.reshape(X.x, (predX.shape[0], predX.shape[1]))
+            x_features = torch.reshape(X.x, (predX.shape[0], predX.shape[1])).to(self.device)
 
             total_loss = criterion(x_features, predX)
 
@@ -139,7 +139,6 @@ class LossHandler():
                 self._add_loss(mode, 'VARIATIONAL', variational_kl_loss)
                 total_loss += variational_kl_loss
 
-        print("Leaving loss handler")
         return total_loss
 
 

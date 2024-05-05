@@ -81,7 +81,7 @@ class GraphDataLoader:
             pred_data += [tmp]
         pred_data = self.prepare_labels(pd.DataFrame(pred_data, columns = self.pred_vars))
 
-        cd = CustomDataset(gen_data, torch.tensor(cli_data).to(self.device), torch.tensor(pred_data).to(self.device))
+        cd = CustomDataset(gen_data, torch.tensor(cli_data), torch.tensor(pred_data))
         return cd
 
     def train_test_val_split(self, graphs, test_ratio, val_ratio):
@@ -172,7 +172,7 @@ def collect_all_graph_data(graphs, device):
         features = torch.tensor(features)
         d = Data(x=features, edge_index=edge_index)
         d.validate(raise_on_error=True)
-        D += [d.to(device)]
+        D += [d]
     return D
 
 
