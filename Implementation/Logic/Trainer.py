@@ -38,7 +38,6 @@ class Trainer:
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.WITH_HISTOLOGY = WITH_HISTOLOGY
 
-
     def train(self):
         '''
         This method trains a model.
@@ -56,7 +55,7 @@ class Trainer:
             tr_model.model.train()
             train_loss = 0.0
             for b in tr_model.train_loader:
-                x_batch = b[0] # we keep the first attribute from CustomDataset (data)
+                x_batch = b[0]  # we keep the first attribute from CustomDataset (data)
 
                 # In case we need to introduce noise to the training data
                 x_batch = tr_model.loss_fn.initialize_loss(x_batch, tr_model.GNN)
@@ -71,8 +70,8 @@ class Trainer:
                     x_pred_batch = tr_model.model.forward(x_batch)
 
                 # We transform graph -> tabular data. If already tabular, nothing happens.
-                #x_batch = tr_model.transform_to_tabular(x_batch)
-                
+                # x_batch = tr_model.transform_to_tabular(x_batch)
+
                 # Compute loss for the entire batch
                 loss = tr_model.compute_model_loss(x_batch, x_pred_batch, mu, log_var)
 
@@ -99,7 +98,7 @@ class Trainer:
                         x_pred_batch = tr_model.model.forward(x_batch)
 
                     # We transform graph -> tabular data. If already tabular, nothing happens.
-                    #x_batch = tr_model.transform_to_tabular(x_batch)
+                    # x_batch = tr_model.transform_to_tabular(x_batch)
 
                     # Compute loss for the entire batch
                     loss = tr_model.compute_model_loss(x_batch, x_pred_batch, mu, log_var)
@@ -109,7 +108,8 @@ class Trainer:
             scheduler.step()
 
             # Print epoch-wise loss
-            loss_dict_tr, loss_dict_val = tr_model.loss_fn.process_batch(len(tr_model.train_loader), len(tr_model.val_loader))
+            loss_dict_tr, loss_dict_val = tr_model.loss_fn.process_batch(len(tr_model.train_loader),
+                                                                         len(tr_model.val_loader))
 
             avg_valid_loss = round(loss_dict_val['MSE'][-1], 2)
             print("Epoch", t, "completed with average validation loss:", avg_valid_loss)
@@ -121,12 +121,13 @@ class Trainer:
                 best_epoch = t
                 print("New checkpoint!")
 
-        torch.save(best_model_state, 'Checkpoints/model_loss' + str(tr_model.name) + "_" + str(round(best_validation_loss)) + '.pth')
+        torch.save(best_model_state,
+                   'Checkpoints/model_loss' + str(tr_model.name) + "_" + str(round(best_validation_loss)) + '.pth')
         tr_model.model.load_state_dict(best_model_state)
 
         print("Loading model with best loss", best_validation_loss, "found in Epoch", best_epoch)
 
-        plot_losses(np.arange(tr_model.epochs+1), loss_dict_tr, loss_dict_val, tr_model.name+"/train_val_loss.png")
+        plot_losses(np.arange(tr_model.epochs + 1), loss_dict_tr, loss_dict_val, tr_model.name + "/train_val_loss.png")
 
         return best_validation_loss
 

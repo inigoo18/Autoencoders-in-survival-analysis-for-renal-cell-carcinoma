@@ -141,6 +141,8 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
                 foldObject.Reconstruction += [bestValLoss]
                 foldObject.MSE += [mseError]
                 foldObject.ROC += [meanRes]
+                with torch.no_grad():
+                    torch.cuda.empty_cache()
             foldObjects += [foldObject]
         cohortResults[cohort] = foldObjects
     return cohortResults, combinations
@@ -242,6 +244,7 @@ def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS, pvalues_cohort, pva
                 if np.isnan(x):
                     strToInsert = "-"
                 worksheet.write(row, col, strToInsert)
+            col += 1
             if str(names[i]) == '[]':
                 worksheet.write(row, col, '-')
             else:
@@ -284,7 +287,7 @@ def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS, pvalues_cohort, pva
 
 
 if __name__ == "__main__":
-    option = "Tabular"
+    option = "Graph"
     WITH_HISTOLOGY = False
 
     torch.manual_seed(42)
