@@ -18,6 +18,8 @@ import matplotlib.pyplot as plt
 
 import warnings
 from sklearn.exceptions import FitFailedWarning
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 
 import seaborn as sns
 
@@ -169,9 +171,9 @@ class Trainer:
         non_zero = 0
         offset = 0.1
 
-        start = 0.000001
+        start = 0.0005
         stop = 0.01
-        step = 0.000005
+        step = 0.0002
 
         while non_zero == 0 and TRIES > 0:
             estimated_alphas = np.arange(start, stop + step, step)
@@ -180,14 +182,19 @@ class Trainer:
             warnings.simplefilter("ignore", UserWarning)
             warnings.simplefilter("ignore", FitFailedWarning)
 
-            cv = KFold(n_splits=5, shuffle = True, random_state = 46)
+            scaler = StandardScaler()
+            scaler.fit(latent_space_train)
+            scaled_latent_space_train = scaler.transform(latent_space_train)
+            scaled_latent_space_test = scaler.transform(latent_space_test)
+
+            cv = KFold(n_splits=7, shuffle = True, random_state = 46)
             gcv = GridSearchCV(
-                as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.1, fit_baseline_model = True, max_iter = 100000, normalize = False)),
+                as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.8, fit_baseline_model = True, max_iter = 120000, normalize = False)),
                 param_grid = {"estimator__alphas": [[v] for v in estimated_alphas]},
                 cv = cv,
                 error_score = 0,
                 n_jobs = -1,
-            ).fit(latent_space_train, yTrain)
+            ).fit(scaled_latent_space_train, yTrain)
 
             cv_results = pd.DataFrame(gcv.cv_results_)
 
@@ -233,7 +240,7 @@ class Trainer:
             plot_tsne_coefs(data_points, cols_interest, eval_model.name + "/tsne")
 
         # Predict using the best model and the test latent space
-        cph_risk_scores = best_model.predict(latent_space_test, alpha = best_alpha)
+        cph_risk_scores = best_model.predict(scaled_latent_space_test, alpha = best_alpha)
 
         times = yTest['time']
 
@@ -243,7 +250,7 @@ class Trainer:
         meanRes = plot_auc(va_times, cph_auc, eval_model.name + "/ROC")
 
         # Using survival functions, obtain median OR mean and assign it to each patient.
-        survival_functions = best_model.predict_survival_function(latent_space_test, best_alpha)
+        survival_functions = best_model.predict_survival_function(scaled_latent_space_test, best_alpha)
         predicted_times = []
 
         # TODO:: this must be placed somewhere else in the beginning.

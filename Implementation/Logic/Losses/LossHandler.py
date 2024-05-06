@@ -108,16 +108,16 @@ class LossHandler():
 
             total_loss = criterion(x_features, predX)
 
-            adjacency_loss = 0
-            outer_product = torch.matmul(predX[:, :, None].to(self.device), predX[:, None, :].to(self.device)).to(self.device)
-            adjacency_res = [nn.BCEWithLogitsLoss()(x.flatten(), self.adj_matrix.flatten()) for x in outer_product]
-            adjacency_loss = torch.sum(torch.stack(adjacency_res))
+            #adjacency_loss = 0
+            #outer_product = torch.matmul(predX[:, :, None].to(self.device), predX[:, None, :].to(self.device)).to(self.device)
+            #adjacency_res = [nn.BCEWithLogitsLoss()(x.flatten(), self.adj_matrix.flatten()) for x in outer_product]
+            #adjacency_loss = torch.sum(torch.stack(adjacency_res))
 
             #for x_i in predX:
             #    adjacency_pred = torch.ger(x_i, x_i.t())
             #    adjacency_loss += nn.BCEWithLogitsLoss()(adjacency_pred.flatten(), self.adj_matrix.flatten())
 
-            total_loss += adjacency_loss
+            #total_loss += adjacency_loss
 
 
         self._add_loss(mode, 'MSE', total_loss)
