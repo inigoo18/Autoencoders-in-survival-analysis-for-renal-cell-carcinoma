@@ -10,14 +10,14 @@ class VariationalExample(nn.Module):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         self.encoder = torch.nn.Sequential(
-            custom_block(input_dim, 2000),
-            custom_block_final_dropout(2000, 500),
+            custom_block(input_dim, 1500),
+            custom_block_final_dropout(1500, 500),
         )
 
         self.decoder = torch.nn.Sequential(
-            custom_block(L, 500),
-            custom_block_final_dropout(500, 2000),
-            custom_block_final(2000, input_dim)
+            custom_block_final_dropout(L, 500),
+            custom_block_final_dropout(500, 1500),
+            custom_block_final(1500, input_dim)
         )
 
         # latent mean and variance

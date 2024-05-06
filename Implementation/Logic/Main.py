@@ -130,7 +130,7 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
                 vaeModel = GNNVariationalExample(1, d.input_dim, L, BATCH_SIZE)
                 if LossType.VARIATIONAL in comb:
                     aeModel = vaeModel
-                optim = torch.optim.Adam(aeModel.parameters(), lr=0.0001)
+                optim = torch.optim.Adam(aeModel.parameters(), lr=0.0005)
                 instanceModel = TrainingModel(title, d, foldObject.iterations[fold], clinicalVars,
                                               aeModel, loss_fn, optim, EPOCHS, BATCH_SIZE, L,
                                               True)  # , 'best_model_loss_1478.pth')
@@ -187,8 +187,8 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
         plt.ylim(0,15)
         plt.yticks(np.arange(0, 16, 1), fontsize=10)
     else:
-        plt.ylim(0,300)
-        plt.yticks(np.arange(0, 325, 25), fontsize=10)
+        plt.ylim(0,200)
+        plt.yticks(np.arange(0, 220, 20), fontsize=10)
 
     # Add labels and title
     plt.xlabel('Component')
@@ -294,7 +294,7 @@ if __name__ == "__main__":
     np.random.seed(42)
 
     L = 64
-    loss_args = {'noise_factor': 0.01, 'reg_param': 0.4, 'rho': 0.01}
+    loss_args = {'noise_factor': 0.005, 'reg_param': 0.25, 'rho': 0.001}
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
     EPOCHS = 100

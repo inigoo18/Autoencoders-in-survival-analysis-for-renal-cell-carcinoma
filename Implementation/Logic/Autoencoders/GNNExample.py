@@ -4,7 +4,7 @@ import torch
 import torch_geometric
 
 from torch.nn import Linear, ReLU,Dropout
-from torch_geometric.nn import Sequential, GCNConv, TopKPooling, SimpleConv
+from torch_geometric.nn import Sequential, GCNConv, TopKPooling, SimpleConv, GeneralConv
 import torch.nn.functional as F
 import torch.nn as nn
 
@@ -17,7 +17,7 @@ class GNNExample(nn.Module):
         self.conv = GCNConv(num_features, num_features) # SimpleConv(aggr = "median", combine_root = "self_loop") # aggr :: [sum, mean, mul]
         self.conv2 = GCNConv(num_features,
                             num_features)  # SimpleConv(aggr = "median", combine_root = "self_loop") # aggr :: [sum, mean, mul]
-
+        self.genConv = GeneralConv(num_features, num_features, aggr = 'mean')
         model = MWE_AE(input_dim, L)
         self.encoder = model.encoder
         self.decoder = model.decoder
@@ -25,7 +25,7 @@ class GNNExample(nn.Module):
         self.input_dim = input_dim
         self.num_features = num_features
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.dropout = nn.Dropout(p=0.05)
+        self.dropout = nn.Dropout(p=0.1)
         self.prelu = nn.PReLU()
         self.lrelu = nn.LeakyReLU()
         self.batchNorm = nn.BatchNorm1d(num_features)
@@ -35,12 +35,9 @@ class GNNExample(nn.Module):
         xs = torch.tensor([]).to(self.device)
         for i in range(len(data)):
             x, edge_index = data[i].x.to(self.device), data[i].edge_index.to(self.device)
-            h = self.conv(x, edge_index)
-            h = self.batchNorm(h)
-            h = self.prelu(h)
-            #h = self.conv2(h, edge_index)
-            #h = self.lrelu(h)
-            #h = self.dropout(h)
+            h = self.genConv(x, edge_index)
+            h = self.lrelu(h)
+            h = self.dropout(h)
             xs = torch.cat([xs, h])
         return xs
 

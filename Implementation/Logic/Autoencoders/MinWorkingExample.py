@@ -11,15 +11,15 @@ class MWE_AE(torch.nn.Module):
         print("Initializing Minimal Working Example AE with input dim: ", input_dim)
 
         self.encoder = torch.nn.Sequential(
-            custom_block(input_dim, 2000),
-            custom_block_final_dropout(2000, 500),
+            custom_block(input_dim, 1500),
+            custom_block_final_dropout(1500, 500),
             custom_block_final(500, L)
         )
 
         self.decoder = torch.nn.Sequential(
-            custom_block(L, 500),
-            custom_block_final_dropout(500, 2000),
-            custom_block_final(2000, input_dim)
+            custom_block_final_dropout(L, 500),
+            custom_block_final_dropout(500, 1500),
+            custom_block_final(1500, input_dim)
         )
 
 
@@ -44,7 +44,7 @@ def custom_block(input_dim, output_dim, dropout_rate=0.1):
 def custom_block_final_dropout(input_dim, output_dim, dropout_rate = 0.1):
     return torch.nn.Sequential(
         torch.nn.Linear(input_dim, output_dim),
-        torch.nn.Sigmoid(),
+        torch.nn.Tanh(),
         torch.nn.Dropout(dropout_rate)
     )
 
