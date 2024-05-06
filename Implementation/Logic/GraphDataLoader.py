@@ -240,22 +240,26 @@ def filter_cohort(graphs, cohort):
     return res
 
 def validate_test_set(train_set, test_set):
-    uncensoredTrainIdx = -1
-    uncensoredTestIdx = -1
-    censoredTrainIdx = -1
-    censoredTestIdx = -1
+    uncensoredTrainIdx, uncensoredTrainVal = (-1,-1)
+    uncensoredTestIdx, uncensoredTestVal = (-1,-1)
+    censoredTrainIdx, censoredTrainVal = (-1,-1)
+    censoredTestIdx, censoredTestVal = (-1,-1)
 
     for g in range(len(train_set)):
-        if (uncensoredTrainIdx == -1) or (train_set[g].graph['PFS_P_CNSR'] == 0 and train_set[g].graph['PFS_P'] > uncensoredTrainIdx):
+        if (uncensoredTrainIdx == -1) or (train_set[g].graph['PFS_P_CNSR'] == 0 and train_set[g].graph['PFS_P'] > uncensoredTrainVal):
             uncensoredTrainIdx = g
-        if (censoredTrainIdx == -1) or (train_set[g].graph['PFS_P_CNSR'] == 1 and train_set[g].graph['PFS_P'] > censoredTrainIdx):
+            uncensoredTrainVal = train_set[g].graph['PFS_P']
+        if (censoredTrainIdx == -1) or (train_set[g].graph['PFS_P_CNSR'] == 1 and train_set[g].graph['PFS_P'] > censoredTrainVal):
             censoredTrainIdx = g
+            censoredTrainVal = train_set[g].graph['PFS_P']
 
     for g in range(len(test_set)):
-        if (uncensoredTestIdx == -1) or (test_set[g].graph['PFS_P_CNSR'] == 0 and test_set[g].graph['PFS_P'] > uncensoredTestIdx):
+        if (uncensoredTestIdx == -1) or (test_set[g].graph['PFS_P_CNSR'] == 0 and test_set[g].graph['PFS_P'] > uncensoredTestVal):
             uncensoredTestIdx = g
-        if (censoredTestIdx == -1) or (test_set[g].graph['PFS_P_CNSR'] == 1 and test_set[g].graph['PFS_P'] > censoredTestIdx):
+            uncensoredTestVal = test_set[g].graph['PFS_P']
+        if (censoredTestIdx == -1) or (test_set[g].graph['PFS_P_CNSR'] == 1 and test_set[g].graph['PFS_P'] > censoredTestVal):
             censoredTestIdx = g
+            censoredTestVal = test_set[g].graph['PFS_P']
 
     if train_set[uncensoredTrainIdx].graph['PFS_P'] < test_set[uncensoredTestIdx].graph['PFS_P']:
         tmp = train_set[uncensoredTrainIdx]
