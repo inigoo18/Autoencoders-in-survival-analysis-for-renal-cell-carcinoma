@@ -4,7 +4,7 @@ import torch
 import torch_geometric
 
 from torch.nn import Linear, ReLU,Dropout
-from torch_geometric.nn import Sequential, GCNConv, TopKPooling, SimpleConv
+from torch_geometric.nn import Sequential, GCNConv, TopKPooling, SimpleConv, GeneralConv
 import torch.nn.functional as F
 import torch.nn as nn
 
@@ -16,6 +16,7 @@ class GNNVariationalExample(nn.Module):
         super(GNNVariationalExample, self).__init__()
         self.conv = GCNConv(num_features,
                             num_features)  # SimpleConv(aggr = "median", combine_root = "self_loop") # aggr :: [sum, mean, mul]
+        self.genConv = GeneralConv(num_features, num_features, aggr='mean')
         self.model = VariationalExample(input_dim, L)
         self.encoder = self.model.encoder
         self.decoder = self.model.decoder
@@ -31,7 +32,7 @@ class GNNVariationalExample(nn.Module):
         xs = torch.tensor([]).to(self.device)
         for i in range(len(data)):
             x, edge_index = data[i].x.to(self.device), data[i].edge_index.to(self.device)
-            h = self.conv(x, edge_index)
+            h = self.genConv(x, edge_index)
             h = self.lrelu(h)
             h = self.dropout(h)
             xs = torch.cat([xs, h])
