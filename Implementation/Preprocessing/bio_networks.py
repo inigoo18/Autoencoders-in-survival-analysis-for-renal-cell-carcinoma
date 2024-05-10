@@ -67,6 +67,7 @@ def get_snap(expression_DF, genes, remove_components, RADIUS):
     # requests the entrezgene field to be included in the output, specifies that the genes are from the human species.
     out_entrez = list(mg.querymany(genes, scopes='symbol', fields='entrezgene', species='human', verbose=False))
 
+    # We query for genes (DisGeNet)
     entrezgenes = []
     mapping = {}
     nodesToAdd = []
@@ -81,13 +82,14 @@ def get_snap(expression_DF, genes, remove_components, RADIUS):
     nodesToAdd = list(set([item for sublist in nodesToAdd for item in sublist]))
     addedCount = len([x for x in nodesToAdd if x not in entrezgenes])
 
+    # we query for the added nodes through the recursive lookup
     out_symbol = list(mg.querymany(nodesToAdd, scopes='entrezgene', fields='symbol', species='human', verbose=False))
     for o in out_symbol:
         if 'symbol' in o:
             entrezgenes.append(int(o['query']))
             mapping[int(o['query'])] = o['symbol']
 
-    # This is our expression dataframe, which we need to use in order to filter out those nodes in the ppi that are not in the dataframe
+    # This is our expression dataframe, which we need to use in order to filter out those nodes in DisGeNet+PPI that are not in the dataframe
     entrezgenes_exp_data = []
     out_entrez_DF = list(
         mg.querymany(list(expression_DF.columns), scopes='symbol', fields='entrezgene', species='human',
