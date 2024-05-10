@@ -83,7 +83,7 @@ if __name__ == "__main__":
 
    # Obtain list of genes of interest from the tsv downloaded in disgenet
    disgenet_target = os.path.abspath(
-      os.path.join(current_directory, '..', '..', 'Data', 'DisGenet', 'Group_Diseases_15_5496genes.tsv'))
+      os.path.join(current_directory, '..', '..', 'Data', 'DisGenet', 'Group_Diseases_04_4447genes.tsv'))
 
    G = pd.read_csv(disgenet_target, sep='\t')
    genes = list(set(G['Gene'].values))

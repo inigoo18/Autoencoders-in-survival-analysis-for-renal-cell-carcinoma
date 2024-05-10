@@ -183,17 +183,19 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
     if typename == 'ROC':
         plt.ylim(0, 1)
         plt.yticks(np.arange(0, 1.1, 0.1), fontsize=10)
+        plt.title('Scores for AUC ROC for each treatment arm')
     elif typename == 'MSE':
         plt.ylim(0,15)
         plt.yticks(np.arange(0, 16, 1), fontsize=10)
+        plt.title('Predictions (MSE) for each treatment arm')
     else:
         plt.ylim(0,200)
         plt.yticks(np.arange(0, 220, 20), fontsize=10)
+        plt.title('Autoencoder reconstruction for each treatment arm')
 
     # Add labels and title
     plt.xlabel('Component')
     plt.ylabel('Score')
-    plt.title('Scores in ' + typename)
     plt.tight_layout()
 
     if typename == 'Reconstruction':
@@ -287,7 +289,7 @@ def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS, pvalues_cohort, pva
 
 
 if __name__ == "__main__":
-    option = "Tabular"
+    option = "Graph"
     WITH_HISTOLOGY = False
 
     torch.manual_seed(42)
