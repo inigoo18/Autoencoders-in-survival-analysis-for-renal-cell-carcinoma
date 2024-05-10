@@ -66,7 +66,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
                 vaeModel = VariationalExample(d.input_dim, L)
                 if LossType.VARIATIONAL in comb:
                     aeModel = vaeModel
-                optim = torch.optim.Adam(aeModel.parameters(), lr = 0.0005)
+                optim = torch.optim.Adam(aeModel.parameters(), lr = 0.0001)
                 instanceModel = TrainingModel(title, d, foldObject.iterations[fold], clinicalVars,
                                             aeModel, loss_fn, optim, EPOCHS, BATCH_SIZE, L, False)#, 'best_model_loss_1478.pth')
 
@@ -130,7 +130,7 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
                 vaeModel = GNNVariationalExample(1, d.input_dim, L, BATCH_SIZE)
                 if LossType.VARIATIONAL in comb:
                     aeModel = vaeModel
-                optim = torch.optim.Adam(aeModel.parameters(), lr=0.0005)
+                optim = torch.optim.Adam(aeModel.parameters(), lr=0.0001)
                 instanceModel = TrainingModel(title, d, foldObject.iterations[fold], clinicalVars,
                                               aeModel, loss_fn, optim, EPOCHS, BATCH_SIZE, L,
                                               True)  # , 'best_model_loss_1478.pth')
@@ -287,7 +287,7 @@ def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS, pvalues_cohort, pva
 
 
 if __name__ == "__main__":
-    option = "Graph"
+    option = "Tabular"
     WITH_HISTOLOGY = False
 
     torch.manual_seed(42)
@@ -302,7 +302,7 @@ if __name__ == "__main__":
     COHORTS = ['Avelumab+Axitinib','Sunitinib'] # ['Avelumab+Axitinib'] # ['ALL','Avelumab+Axitinib','Sunitinib']
 
     if WITH_HISTOLOGY is False:
-        clinicalVars = []
+        clinicalVars = ['HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA']
 
     if option == "Tabular":
         BATCH_SIZE = 16

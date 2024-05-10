@@ -52,7 +52,7 @@ class VariationalExample(nn.Module):
         x_hat = self.decode(z)
         return x_hat, mean, log_var
 
-def custom_block(input_dim, output_dim, dropout_rate=0.1):
+def custom_block(input_dim, output_dim, dropout_rate=0.15):
     return torch.nn.Sequential(
         torch.nn.Linear(input_dim, output_dim),
         torch.nn.BatchNorm1d(output_dim),

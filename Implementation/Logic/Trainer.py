@@ -51,7 +51,7 @@ class Trainer:
         best_validation_loss = float('inf')
         best_model_state = None
         best_epoch = -1
-        scheduler = StepLR(tr_model.optim, step_size=tr_model.epochs // 4, gamma=0.5)
+        scheduler = StepLR(tr_model.optim, step_size=tr_model.epochs // 4, gamma=0.8)
 
         for t in range(tr_model.epochs + 1):
             tr_model.model.train()
@@ -152,9 +152,8 @@ class Trainer:
         latent_space_test = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=0)).cpu().detach().numpy()
 
         # We add clinical variables
-        if self.WITH_HISTOLOGY:
-            latent_space_train = np.concatenate((latent_space_train.cpu().detach().numpy(), eval_model.data_loader.unroll_batch(eval_model.train_loader, dim=1)), axis = 1)
-            latent_space_test = np.concatenate((latent_space_test.cpu().detach().numpy(), eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=1)), axis = 1)
+        latent_space_train = np.concatenate((latent_space_train, eval_model.data_loader.unroll_batch(eval_model.train_loader, dim=1).cpu().detach().numpy()), axis = 1)
+        latent_space_test = np.concatenate((latent_space_test, eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=1).cpu().detach().numpy()), axis = 1)
 
         yTrain = eval_model.data_loader.unroll_batch(eval_model.train_loader, dim=2).cpu().detach().numpy()
         yTrain = np.array([(bool(event), float(time)) for event, time in yTrain], dtype=[('event', bool), ('time', float)])

@@ -98,13 +98,14 @@ if __name__ == "__main__":
          os.path.join(current_directory, '..', '..', 'Data', 'output_GeneticData.csv')) # 738 patients
       clinical_target = os.path.abspath(
          os.path.join(current_directory, '..', '..', 'Data', 'output_ClinicalData.csv'))
-      clinicalFeatures = ['PFS_P', 'PFS_P_CNSR', 'TRT01P']
+      clinicalFeatures = ['PFS_P', 'PFS_P_CNSR', 'TRT01P',
+                          'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA']
 
 
    # expression data
    expression_data = pd.read_csv(expression_target, sep = ',', index_col=0)
 
-   # we remove expressions that are very low (Q3 < 2)
+   # we remove expressions that are very low (Q2 < 2 && Q3 < 4)
    q3_values = expression_data.quantile(0.75)
    expression_data = expression_data.loc[:, (q3_values >= 4) | (expression_data.median() >= 2)]
 

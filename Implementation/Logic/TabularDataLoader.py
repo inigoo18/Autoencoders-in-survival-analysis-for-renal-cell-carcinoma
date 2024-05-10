@@ -172,8 +172,8 @@ def filter_cohort(df, cohort):
 def swap_patients(train_df, test_df, train_pat, test_pat):
     train_df_t = train_df.drop(train_pat.name)
     test_df_t = test_df.drop(test_pat.name)
-    train_df = train_df_t.loc[test_pat.name] = test_pat
-    test_df = test_df_t.loc[train_pat.name] = train_pat
+    train_df_t.loc[test_pat.name] = test_pat
+    test_df_t.loc[train_pat.name] = train_pat
     return train_df_t, test_df_t
 
 def validate_test_set(train_df, test_df):
