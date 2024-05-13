@@ -50,11 +50,12 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
         combinations += [losses]
 
     combinations = [[], [LossType.DENOISING], [LossType.SPARSE_KL], [LossType.VARIATIONAL], [LossType.DENOISING, LossType.SPARSE_KL]]
+    combinations = [[], [LossType.DENOISING], [LossType.SPARSE_KL], [LossType.DENOISING, LossType.SPARSE_KL]]
     cohortResults = {}
 
 
     for cohort in COHORTS:
-        d = TabularDataLoader(somepath, ['PFS_P', 'PFS_P_CNSR'], clinicalVars, 0.2, 0.1, BATCH_SIZE, FOLDS, cohort)  # 70% train, 20% test, 10% val
+        d = TabularDataLoader(somepath, ['PFS_P', 'PFS_P_CNSR'], clinicalVars, 0.4, 0.1, BATCH_SIZE, FOLDS, cohort)  # 50% train, 40% test, 10% val
         foldObjects = []
         for comb in combinations:
             print(comb)
@@ -289,7 +290,7 @@ def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS, pvalues_cohort, pva
 
 
 if __name__ == "__main__":
-    option = "Graph"
+    option = "Tabular"
     WITH_HISTOLOGY = False
 
     torch.manual_seed(42)
@@ -301,10 +302,12 @@ if __name__ == "__main__":
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
     EPOCHS = 100
     FOLDS = 10
-    COHORTS = ['Avelumab+Axitinib','Sunitinib'] # ['Avelumab+Axitinib'] # ['ALL','Avelumab+Axitinib','Sunitinib']
+    #COHORTS = ['Avelumab+Axitinib','Sunitinib']
+    COHORTS = ['EVEROLIMUS']
 
     if WITH_HISTOLOGY is False:
-        clinicalVars = ['HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA']
+        #clinicalVars = ['HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA']
+        clinicalVars = []
 
     if option == "Tabular":
         BATCH_SIZE = 16

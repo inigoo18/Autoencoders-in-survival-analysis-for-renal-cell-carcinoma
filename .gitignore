@@ -1,6 +1,8 @@
 Implementation/VirtualEnvironment/*
 Implementation/.idea
+Implementation/Logic/Results/*
 Notebooks/.ipynb_checkpoints/*
+Data/*
 *.pkl
 *.csv
 *.tsv
