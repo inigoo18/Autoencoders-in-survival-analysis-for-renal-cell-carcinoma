@@ -74,7 +74,8 @@ def create_samples_graphs(genData, cliData, G, clinicalFeatures = []):
 if __name__ == "__main__":
 
    CONSIDER_HISTOLOGY = False
-   RADIUSES = [1, 2, 3, 4, 5, 7]
+   COHORT = 'AvelumabCohort'
+   RADIUSES = [1, 2, 3]
    clinicalFeatures = ['PFS_P', 'PFS_P_CNSR', 'MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA',
                        'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                        'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA', 'TRT01P']
@@ -90,14 +91,14 @@ if __name__ == "__main__":
 
    if CONSIDER_HISTOLOGY:
       expression_target = os.path.abspath(
-         os.path.join(current_directory, '..', '..', 'Data', 'output_GeneticDataWithHistology.csv')) # 650 patients
+         os.path.join(current_directory, '..', '..', 'Data', COHORT, 'output_GeneticDataWithHistology.csv')) # 650 patients
       clinical_target = os.path.abspath(
-         os.path.join(current_directory, '..', '..', 'Data', 'output_ClinicalDataWithHistology.csv'))
+         os.path.join(current_directory, '..', '..', 'Data', COHORT, 'output_ClinicalDataWithHistology.csv'))
    else:
       expression_target = os.path.abspath(
-         os.path.join(current_directory, '..', '..', 'Data', 'output_GeneticData.csv')) # 738 patients
+         os.path.join(current_directory, '..', '..', 'Data', COHORT, 'output_GeneticData.csv')) # 738 patients
       clinical_target = os.path.abspath(
-         os.path.join(current_directory, '..', '..', 'Data', 'output_ClinicalData.csv'))
+         os.path.join(current_directory, '..', '..', 'Data',COHORT, 'output_ClinicalData.csv'))
       clinicalFeatures = ['PFS_P', 'PFS_P_CNSR', 'TRT01P',
                           'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA']
 
