@@ -186,12 +186,12 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
         plt.yticks(np.arange(0, 1.1, 0.1), fontsize=10)
         plt.title('Scores for AUC ROC for each treatment arm')
     elif typename == 'MSE':
-        plt.ylim(0,15)
-        plt.yticks(np.arange(0, 16, 1), fontsize=10)
-        plt.title('Predictions (MSE) for each treatment arm')
-    else:
         plt.ylim(0,200)
         plt.yticks(np.arange(0, 220, 20), fontsize=10)
+        plt.title('Predictions (MSE) for each treatment arm')
+    else:
+        plt.ylim(0,100)
+        plt.yticks(np.arange(0, 120, 20), fontsize=10)
         plt.title('Autoencoder reconstruction for each treatment arm')
 
     # Add labels and title
@@ -300,10 +300,10 @@ if __name__ == "__main__":
     loss_args = {'noise_factor': 0.001, 'reg_param': 0.15, 'rho': 0.001}
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
-    EPOCHS = 50
+    EPOCHS = 100
     FOLDS = 10
     #COHORTS = ['Avelumab+Axitinib','Sunitinib']
-    COHORTS = ['EVEROLIMUS', 'NIVOLUMAB']
+    COHORTS = ['NIVOLUMAB', 'EVEROLIMUS']
     #COHORTS = ['ALL']
 
     if WITH_HISTOLOGY is False:
