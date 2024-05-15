@@ -174,6 +174,8 @@ class Trainer:
         stop = 0.1
         step = 0.00003
 
+        print(yTrain)
+
         while non_zero == 0 and TRIES > 0:
             estimated_alphas = np.arange(start, stop + step, step)
 
@@ -243,7 +245,7 @@ class Trainer:
 
         times = yTest['time']
 
-        va_times = np.arange(min(times), max(times), 0.5)
+        va_times = np.arange(min(times), max(times), 0.2)
         cph_auc, _ = cumulative_dynamic_auc(yTrain, yTest, cph_risk_scores, va_times)
 
         meanRes = plot_auc(va_times, cph_auc, eval_model.name + "/ROC")

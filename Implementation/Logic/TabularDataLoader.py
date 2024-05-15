@@ -176,6 +176,7 @@ def swap_patients(train_df, test_df, train_pat, test_pat):
     test_df_t.loc[train_pat.name] = train_pat
     return train_df_t, test_df_t
 
+
 def validate_test_set(train_df, test_df):
     '''
     Train data should have the largest PFS, both in censored and uncensored. During the KFold process, if this were not
@@ -196,11 +197,29 @@ def validate_test_set(train_df, test_df):
         train_pat = train_df.loc[train_CensoredPFS.idxmax()]
         train_df, test_df = swap_patients(train_df, test_df, train_pat, test_pat)
 
-
     if (max(test_UncensoredPFS) > max(train_UncensoredPFS)):
-        # swap max test with max train
         test_pat = test_df.loc[test_UncensoredPFS.idxmax()]
         train_pat = train_df.loc[train_UncensoredPFS.idxmax()]
         train_df, test_df = swap_patients(train_df, test_df, train_pat, test_pat)
+
+    if (min(test_UncensoredPFS) < min(train_UncensoredPFS)):
+        test_pat = test_df.loc[test_UncensoredPFS.idxmin()]
+        train_pat = train_df.loc[train_UncensoredPFS.idxmin()]
+        train_df, test_df = swap_patients(train_df, test_df, train_pat, test_pat)
+
+    if (min(test_CensoredPFS) < min(train_CensoredPFS)):
+        test_pat = test_df.loc[test_CensoredPFS.idxmin()]
+        train_pat = train_df.loc[train_CensoredPFS.idxmin()]
+        train_df, test_df = swap_patients(train_df, test_df, train_pat, test_pat)
+
+    y_events = train_df[train_df["PFS_P_CNSR"] == 0]
+    train_min, train_max = y_events["PFS_P"].min(), y_events["PFS_P"].max()
+
+    y_events = test_df[test_df["PFS_P_CNSR"] == 0]
+    test_min, test_max = y_events["PFS_P"].min(), y_events["PFS_P"].max()
+
+    assert (
+            train_min <= test_min < test_max < train_max
+    ), "WARNING !!! time range or test data is not within time range of training data."
 
     return train_df, test_df
