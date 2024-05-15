@@ -171,9 +171,9 @@ class Trainer:
         non_zero = 0
         offset = 0.8
 
-        start = 0.0001
-        stop = 0.01
-        step = 0.00003
+        start = 0.001
+        stop = 0.1
+        step = 0.0002
 
         while non_zero == 0 and TRIES > 0:
             estimated_alphas = np.arange(start, stop + step, step)
@@ -181,15 +181,16 @@ class Trainer:
             # we remove warnings when coefficients in Cox PH model are 0
             warnings.simplefilter("ignore", UserWarning)
             warnings.simplefilter("ignore", FitFailedWarning)
+            warnings.simplefilter("ignore", ArithmeticError)
 
             scaler = StandardScaler()
             scaler.fit(latent_space_train)
             scaled_latent_space_train = scaler.transform(latent_space_train)
             scaled_latent_space_test = scaler.transform(latent_space_test)
 
-            cv = CustomKFold(n_splits=5, shuffle = True, random_state=41)
+            cv = CustomKFold(n_splits=3, shuffle = True, random_state=41)
             gcv = GridSearchCV(
-                as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.5, fit_baseline_model = True, max_iter = 50000, normalize = False)),
+                as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.9, fit_baseline_model = True, max_iter = 80000, normalize = False)),
                 param_grid = {"estimator__alphas": [[v] for v in estimated_alphas]},
                 cv = cv,
                 error_score = 0,
@@ -252,6 +253,11 @@ class Trainer:
         # Using survival functions, obtain median OR mean and assign it to each patient.
         survival_functions = best_model.predict_survival_function(scaled_latent_space_test, best_alpha)
         predicted_times = []
+
+        print("SURVIVAL FUNCTIONS!!!")
+        print(survival_functions)
+        for g in range(len(survival_functions)):
+            print(survival_functions[g].y, survival_functions[g].x)
 
         # TODO:: this must be placed somewhere else in the beginning.
         mode = "Mean"
@@ -434,7 +440,6 @@ def evaluate_demographic_data(eval_model, survival_functions, demographic_df):
         plt.subplot(2, 2, 1)
         plt.plot(g.x, g.y, color=color, alpha=0.3)
 
-        median_value = np.interp(0.5, g.y[::-1], g.x[::-1])
         plt.plot(demographic_df.iloc[idx]['predicted_PFS'], 0.5, 'x', color=color, alpha=0.5, markersize=10)
         plt.title('Survival Function')
         plt.xlabel('Time')

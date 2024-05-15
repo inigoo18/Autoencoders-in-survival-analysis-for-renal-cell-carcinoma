@@ -55,7 +55,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
 
 
     for cohort in COHORTS:
-        d = TabularDataLoader(somepath, ['PFS_P', 'PFS_P_CNSR'], clinicalVars, 0.2, 0.1, BATCH_SIZE, FOLDS, cohort)  # 60% train, 25% test, 15% val
+        d = TabularDataLoader(somepath, ['PFS_P', 'PFS_P_CNSR'], clinicalVars, 0.4, 0.1, BATCH_SIZE, FOLDS, cohort)  # 60% train, 25% test, 15% val
         foldObjects = []
         for comb in combinations:
             print(comb)
@@ -118,7 +118,7 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
     cohortResults = {}
 
     for cohort in COHORTS:
-        d = GraphDataLoader(somepath, ['PFS_P', 'PFS_P_CNSR'], clinicalVars, 0.2, 0.1,
+        d = GraphDataLoader(somepath, ['PFS_P', 'PFS_P_CNSR'], clinicalVars, 0.45, 0.15,
                             BATCH_SIZE, FOLDS, cohort)  # 70% train, 20% test, 10% val
         foldObjects = []
         for comb in combinations:
@@ -300,10 +300,11 @@ if __name__ == "__main__":
     loss_args = {'noise_factor': 0.001, 'reg_param': 0.15, 'rho': 0.001}
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
-    EPOCHS = 15
+    EPOCHS = 50
     FOLDS = 10
     #COHORTS = ['Avelumab+Axitinib','Sunitinib']
-    COHORTS = ['ALL']
+    COHORTS = ['EVEROLIMUS', 'NIVOLUMAB']
+    #COHORTS = ['ALL']
 
     if WITH_HISTOLOGY is False:
         #clinicalVars = ['HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA']
