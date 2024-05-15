@@ -151,6 +151,9 @@ class Trainer:
         latent_space_train = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.train_loader, dim = 0)).cpu().detach().numpy()
         latent_space_test = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=0)).cpu().detach().numpy()
 
+        plot_correlation(eval_model.data_loader.unroll_batch(eval_model.train_loader, dim = 0).cpu().detach().numpy(), latent_space_train,
+                         eval_model.name + "/correlation_test", eval_model.test_genes)
+
         # We add clinical variables
         latent_space_train = np.concatenate((latent_space_train, eval_model.data_loader.unroll_batch(eval_model.train_loader, dim=1).cpu().detach().numpy()), axis = 1)
         latent_space_test = np.concatenate((latent_space_test, eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=1).cpu().detach().numpy()), axis = 1)
@@ -269,7 +272,9 @@ class Trainer:
 
         mseError = evaluate_demographic_data(eval_model, survival_functions, demographic_DF)
 
-        return meanRes, mseError
+        percentageOverEstimation = (demographic_DF['predicted_PFS'] > demographic_DF['PFS_P']).mean() * 100
+
+        return meanRes, mseError, percentageOverEstimation
 
 
 
@@ -410,6 +415,45 @@ def plot_auc(va_times, cph_auc, dir):
     plt.clf()
     plt.close()
     return meanRes
+
+
+def plot_correlation(oriX, predX, dir, geneNames):
+    GENES = 10
+
+    res = np.corrcoef(oriX.T, predX.T)[np.arange(oriX.shape[1])[np.newaxis, :]
+                            ,np.arange(predX.shape[1])[:, np.newaxis]]
+
+    corrs = []
+    for gene in res.T:
+        corrs.append(np.median(abs(gene.T)))
+
+    top_indices = np.argsort(corrs)[-GENES:]
+
+    # Get top five values
+    top_values = [corrs[i] for i in top_indices]
+
+    top_names = [geneNames[idx] for idx in top_indices]
+
+    plt.figure(figsize=(8, 4))
+
+    # AX 0
+    plt.subplot(1, 2, 1)
+    plt.imshow(res, cmap='coolwarm', aspect='auto')
+    plt.colorbar()
+
+    # AX 1
+    plt.subplot(1, 2, 2)
+    ypos = np.arange(len(top_values))
+    plt.barh(ypos, top_values, align='center')
+    plt.yticks(ypos, labels=top_names)
+    plt.xlabel('Correlation')
+    plt.grid(axis='x', linestyle='--', alpha=0.7)
+    plt.title("Correlation of the top 10 genes")
+    plt.tight_layout()
+    plt.savefig("Results/"+dir)
+    plt.clf()
+    plt.close()
+
 
 def evaluate_demographic_data(eval_model, survival_functions, demographic_df):
     # Calculate MSE

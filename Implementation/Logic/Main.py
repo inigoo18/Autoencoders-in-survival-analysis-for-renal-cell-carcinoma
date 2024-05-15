@@ -72,10 +72,11 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
 
                 trainer = Trainer(instanceModel, WITH_HISTOLOGY)
                 bestValLoss = trainer.train()
-                meanRes, mseError = trainer.evaluate()
+                meanRes, mseError, percentageOverEstimation = trainer.evaluate()
                 foldObject.Reconstruction += [bestValLoss]
                 foldObject.MSE += [mseError]
                 foldObject.ROC += [meanRes]
+                foldObject.OverEstimation += [percentageOverEstimation]
                 with torch.no_grad():
                     torch.cuda.empty_cache()
             foldObjects += [foldObject]
@@ -137,10 +138,11 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
 
                 trainer = Trainer(instanceModel, WITH_HISTOLOGY)
                 bestValLoss = trainer.train()
-                meanRes, mseError = trainer.evaluate()
+                meanRes, mseError, percentageOverEstimation = trainer.evaluate()
                 foldObject.Reconstruction += [bestValLoss]
                 foldObject.MSE += [mseError]
                 foldObject.ROC += [meanRes]
+                foldObject.OverEstimation += [percentageOverEstimation]
                 with torch.no_grad():
                     torch.cuda.empty_cache()
             foldObjects += [foldObject]
@@ -185,13 +187,17 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
         plt.yticks(np.arange(0, 1.1, 0.1), fontsize=10)
         plt.title('Scores for AUC ROC for each treatment arm')
     elif typename == 'MSE':
-        plt.ylim(0,15)
-        plt.yticks(np.arange(0, 16, 1), fontsize=10)
+        plt.ylim(0,10)
+        plt.yticks(np.arange(0, 11, 1), fontsize=10)
         plt.title('Predictions (MSE) for each treatment arm')
-    else:
-        plt.ylim(0,200)
-        plt.yticks(np.arange(0, 220, 20), fontsize=10)
+    elif typename == 'Reconstruction':
+        plt.ylim(0,100)
+        plt.yticks(np.arange(0, 110, 10), fontsize=10)
         plt.title('Autoencoder reconstruction for each treatment arm')
+    else:
+        plt.ylim(0, 100)
+        plt.yticks(np.arange(0, 110, 10), fontsize=10)
+        plt.title('Percentage of overestimation of prediction in PFS for each treatment arm')
 
     # Add labels and title
     plt.xlabel('Component')
@@ -207,12 +213,6 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
 
 
 def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS, pvalues_cohort, pvalues_model):
-
-    print("EXCEL")
-    print(ys)
-    print(names)
-    print(pvalues_cohort)
-    print(pvalues_model)
 
     workbook = xlsxwriter.Workbook("Results/" + "Excel_L" + str(L) + "_F" + str(FOLDS) + "_" + typename + ".xlsx")
     worksheet = workbook.add_worksheet()
@@ -289,7 +289,7 @@ def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS, pvalues_cohort, pva
 
 
 if __name__ == "__main__":
-    option = "Graph"
+    option = "Tabular"
     WITH_HISTOLOGY = False
 
     torch.manual_seed(42)
@@ -299,8 +299,8 @@ if __name__ == "__main__":
     loss_args = {'noise_factor': 0.001, 'reg_param': 0.15, 'rho': 0.001}
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
-    EPOCHS = 100
-    FOLDS = 10
+    EPOCHS = 30
+    FOLDS = 2
     COHORTS = ['Avelumab+Axitinib','Sunitinib'] # ['Avelumab+Axitinib'] # ['ALL','Avelumab+Axitinib','Sunitinib']
 
     if WITH_HISTOLOGY is False:
@@ -317,9 +317,11 @@ if __name__ == "__main__":
     foldMSE = [[fold.MSE for fold in foldObjects[cohort]] for cohort in COHORTS]
     foldROC = [[fold.ROC for fold in foldObjects[cohort]] for cohort in COHORTS]
     foldRec = [[fold.Reconstruction for fold in foldObjects[cohort]] for cohort in COHORTS]
+    foldOverEstimation = [[fold.OverEstimation for fold in foldObjects[cohort]] for cohort in COHORTS]
 
     visualize_results(namedCombs, foldMSE, 'MSE', L, FOLDS, COHORTS)
     visualize_results(namedCombs, foldROC, 'ROC', L, FOLDS, COHORTS)
     visualize_results(namedCombs, foldRec, 'Reconstruction', L, FOLDS, COHORTS)
+    visualize_results(namedCombs, foldOverEstimation, 'OverEstimation', L, FOLDS, COHORTS)
 
     print("FINISHED!!")
