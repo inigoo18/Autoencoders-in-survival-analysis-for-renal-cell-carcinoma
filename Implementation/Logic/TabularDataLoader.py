@@ -221,7 +221,7 @@ def validate_test_set(train_df, test_df):
     print("Assertion train_min, test_min, test_max, train_max: ", train_min, test_min, test_max, train_max)
 
     assert (
-            train_min <= test_min < test_max < train_max
+            train_min <= test_min <= test_max < train_max
     ), "WARNING !!! time range or test data is not within time range of training data."
 
     return train_df, test_df

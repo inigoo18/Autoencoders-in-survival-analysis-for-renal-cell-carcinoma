@@ -190,7 +190,7 @@ class Trainer:
 
             cv = CustomKFold(n_splits=3, shuffle = True, random_state=41)
             gcv = GridSearchCV(
-                as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.9, fit_baseline_model = True, max_iter = 80000, normalize = False)),
+                as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.5, fit_baseline_model = True, max_iter = 80000, normalize = False)),
                 param_grid = {"estimator__alphas": [[v] for v in estimated_alphas]},
                 cv = cv,
                 error_score = 0,
@@ -258,6 +258,9 @@ class Trainer:
         print(survival_functions)
         for g in range(len(survival_functions)):
             print(survival_functions[g].y, survival_functions[g].x)
+
+        if np.nan in survival_functions[0].y:
+            return np.nan, np.nan
 
         # TODO:: this must be placed somewhere else in the beginning.
         mode = "Mean"

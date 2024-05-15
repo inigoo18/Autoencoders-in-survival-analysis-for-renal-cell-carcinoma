@@ -55,7 +55,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
 
 
     for cohort in COHORTS:
-        d = TabularDataLoader(somepath, ['PFS_P', 'PFS_P_CNSR'], clinicalVars, 0.4, 0.1, BATCH_SIZE, FOLDS, cohort)  # 60% train, 25% test, 15% val
+        d = TabularDataLoader(somepath, ['PFS_P', 'PFS_P_CNSR'], clinicalVars, 0.3, 0.1, BATCH_SIZE, FOLDS, cohort)  # 60% train, 25% test, 15% val
         foldObjects = []
         for comb in combinations:
             print(comb)
