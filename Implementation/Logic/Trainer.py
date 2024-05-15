@@ -5,13 +5,14 @@ from typing import List
 
 from sklearn.cluster import KMeans
 from sklearn.metrics import mean_squared_error
-from sklearn.model_selection import KFold, GridSearchCV
+from sklearn.model_selection import StratifiedKFold, KFold, GridSearchCV
 from sksurv.linear_model import CoxnetSurvivalAnalysis
 from sksurv.metrics import cumulative_dynamic_auc, as_concordance_index_ipcw_scorer
 from torch.optim.lr_scheduler import StepLR
 from torch_geometric.nn import GAE
 
 from Logic.TrainingModel import TrainingModel
+from Logic.CustomKFoldScikit import CustomKFold
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -156,9 +157,9 @@ class Trainer:
         latent_space_test = np.concatenate((latent_space_test, eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=1).cpu().detach().numpy()), axis = 1)
 
         yTrain = eval_model.data_loader.unroll_batch(eval_model.train_loader, dim=2).cpu().detach().numpy()
-        yTrain = np.array([(bool(event), float(time)) for event, time in yTrain], dtype=[('event', bool), ('time', float)])
+        yTrain = np.array([(bool(event), time) for event, time in yTrain], dtype=[('event', bool), ('time', float)])
         yTest = eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=2).cpu().detach().numpy()
-        yTest = np.array([(bool(event), float(time)) for event, time in yTest], dtype=[('event', bool), ('time', float)])
+        yTest = np.array([(bool(event), time) for event, time in yTest], dtype=[('event', bool), ('time', float)])
 
         draw_latent_space('LatentTrain', eval_model.name, latent_space_train)
         draw_latent_space('LatentTest', eval_model.name, latent_space_test)
@@ -171,10 +172,8 @@ class Trainer:
         offset = 0.8
 
         start = 0.0001
-        stop = 0.1
+        stop = 0.01
         step = 0.00003
-
-        print(yTrain)
 
         while non_zero == 0 and TRIES > 0:
             estimated_alphas = np.arange(start, stop + step, step)
@@ -188,7 +187,7 @@ class Trainer:
             scaled_latent_space_train = scaler.transform(latent_space_train)
             scaled_latent_space_test = scaler.transform(latent_space_test)
 
-            cv = KFold(n_splits=5, shuffle = True, random_state = 40)
+            cv = CustomKFold(n_splits=5, shuffle = True, random_state=41)
             gcv = GridSearchCV(
                 as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.5, fit_baseline_model = True, max_iter = 50000, normalize = False)),
                 param_grid = {"estimator__alphas": [[v] for v in estimated_alphas]},
