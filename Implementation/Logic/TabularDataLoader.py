@@ -120,6 +120,9 @@ class TabularDataLoader:
             res = torch.cat((res, x[dim].to(self.device)), dim = 0)
         return res
 
+    def get_transcriptomic_data(self, data):
+        return self.unroll_batch(data, 0).cpu().detach().numpy()
+
 
 
 

@@ -4,6 +4,7 @@ import math
 from typing import List
 
 from sklearn.cluster import KMeans
+from sklearn.feature_selection import mutual_info_regression
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import KFold, GridSearchCV
 from sksurv.linear_model import CoxnetSurvivalAnalysis
@@ -152,8 +153,6 @@ class Trainer:
         latent_space_train = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.train_loader, dim = 0)).cpu().detach().numpy()
         latent_space_test = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=0)).cpu().detach().numpy()
 
-        plot_correlation(eval_model.data_loader.unroll_batch(eval_model.train_loader, dim = 0).cpu().detach().numpy(), latent_space_train,
-                         eval_model.name + "/correlation_test", eval_model.test_genes)
 
         # We add clinical variables
         latent_space_train = np.concatenate((latent_space_train, eval_model.data_loader.unroll_batch(eval_model.train_loader, dim=1).cpu().detach().numpy()), axis = 1)
@@ -250,8 +249,11 @@ class Trainer:
         print("Best index is", best_indices)
         data_points_best_coef = np.array(latent_space_train)[:, best_indices]
 
+        print("ORIGINAL DATA")
+        print(eval_model.data_loader.get_transcriptomic_data(eval_model.train_loader))
+        print(eval_model.data_loader.get_transcriptomic_data(eval_model.train_loader).shape)
 
-        plot_correlation_coefs(eval_model.data_loader.unroll_batch(eval_model.train_loader, dim=0).cpu().detach().numpy(),
+        plot_correlation_coefs(eval_model.data_loader.get_transcriptomic_data(eval_model.train_loader),
                          data_points_best_coef,
                          eval_model.name + "/correlation_best_features", best_indices, eval_model.test_genes)
 
@@ -431,57 +433,22 @@ def plot_auc(va_times, cph_auc, dir):
     return meanRes
 
 
-def plot_correlation(oriX, predX, dir, geneNames):
-    GENES = 10
-
-    res = np.corrcoef(oriX.T, predX.T)[np.arange(oriX.shape[1])[np.newaxis, :]
-                            ,np.arange(predX.shape[1])[:, np.newaxis]]
-
-    corrs = []
-    for gene in res.T:
-        corrs.append(np.median(abs(gene.T)))
-
-    top_indices = np.argsort(corrs)[-GENES:]
-
-    # Get top five values
-    top_values = [corrs[i] for i in top_indices]
-
-    top_names = [geneNames[idx] for idx in top_indices]
-
-    plt.figure(figsize=(8, 4))
-
-    # AX 0
-    plt.subplot(1, 2, 1)
-    plt.imshow(res, cmap='coolwarm', aspect='auto')
-    plt.colorbar()
-
-    # AX 1
-    plt.subplot(1, 2, 2)
-    ypos = np.arange(len(top_values))
-    plt.barh(ypos, top_values, align='center')
-    plt.yticks(ypos, labels=top_names)
-    plt.xlabel('Correlation')
-    plt.grid(axis='x', linestyle='--', alpha=0.7)
-    plt.title("Correlation of the top 10 genes")
-    plt.tight_layout()
-    plt.savefig("Results/"+dir)
-    plt.clf()
-    plt.close()
-
 def plot_correlation_coefs(oriX, predX, dir, latentIdxs ,geneNames):
     # predX :: 730 x 5
     # latentIdxs :: 5
-    res = np.corrcoef(oriX.T, predX.T)[np.arange(oriX.shape[1])[np.newaxis, :]
-                            ,np.arange(predX.shape[1])[:, np.newaxis]]
+
+    mutual_informations = []
+    for idx in range(len(latentIdxs)):
+        mutual_informations += [mutual_info_regression(oriX, predX[:, idx])]
 
     resList = []
 
     for idx, lat_idx in enumerate(latentIdxs):
-        sorted_indices = np.argsort(res[idx])
+        sorted_indices = np.argsort(mutual_informations[idx])
         # Get the indices of the top 5 values
         top_indices = sorted_indices[-5:]
         # Get the top 5 values
-        top_values = res[idx][top_indices]
+        top_values = mutual_informations[idx][top_indices]
         genes = [geneNames[i] for i in top_indices]
         resList += [(genes, top_values)]
 
@@ -493,7 +460,7 @@ def plot_correlation_coefs(oriX, predX, dir, latentIdxs ,geneNames):
 
     # AX 0
     ax = fig.add_subplot(outer[0])
-    im = ax.imshow(res, cmap='coolwarm', aspect=100 * predX.shape[1])
+    im = ax.imshow(mutual_informations, cmap='coolwarm', aspect=100 * predX.shape[1])
     ax.set_yticks([0, 1, 2, 3, 4])
     ax.set_yticklabels(latentIdxs)
     fig.colorbar(im, ax=ax)
@@ -508,7 +475,7 @@ def plot_correlation_coefs(oriX, predX, dir, latentIdxs ,geneNames):
         ax.barh(ypos, resList[i][1], align='center')
         ax.set_yticks(ypos)
         ax.set_yticklabels(resList[i][0])
-        ax.set_xlabel('Correlation')
+        ax.set_xlabel('Mutual information')
         ax.set_title('Latent ' + str(latentIdxs[i]), fontsize=11)
         ax.grid(axis='x', linestyle='--', alpha=0.7)
 

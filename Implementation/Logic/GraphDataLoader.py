@@ -46,18 +46,13 @@ class GraphDataLoader:
             test_loader = list(create_batches(test_loader, batch_size))
             val_loader = list(create_batches(val_loader, batch_size))
 
-            it = IterationObject(train_loader, test_loader, val_loader, test_set[0].nodes())
+            it = IterationObject(train_loader, test_loader, val_loader, list(test_set[0].nodes()))
             allDatasets += [it]
 
         self.allDatasets = allDatasets
 
         self.adjacency_matrix = compute_adjacency_matrix(train_loader[0][0][0], self.device)  # we only need one graph as they are all the same.
 
-    def describe_dataframe(self):
-        return self.dataframe.describe()
-
-    def fetch_columns(self):
-        return self.dataframe.columns
 
     def custom_loader(self, graphs):
         # we use the method collect_all_graph_data to convert from networkx object to Data object for use in the network
@@ -150,6 +145,9 @@ class GraphDataLoader:
             for x in data:
                 res = torch.cat((res, x[dim].to(self.device)), dim=0)
             return res
+
+    def get_transcriptomic_data(self, data):
+        return self.unroll_batch(data, 0)[0].x.reshape(-1, self.input_dim)
 
 
 def create_batches(loader, batch_size):
