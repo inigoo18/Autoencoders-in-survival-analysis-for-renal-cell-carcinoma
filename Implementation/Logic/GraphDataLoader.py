@@ -46,7 +46,7 @@ class GraphDataLoader:
             test_loader = list(create_batches(test_loader, batch_size))
             val_loader = list(create_batches(val_loader, batch_size))
 
-            it = IterationObject(train_loader, test_loader, val_loader)
+            it = IterationObject(train_loader, test_loader, val_loader, test_set[0].nodes())
             allDatasets += [it]
 
         self.allDatasets = allDatasets

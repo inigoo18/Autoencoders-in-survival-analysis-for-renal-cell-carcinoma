@@ -20,6 +20,7 @@ import warnings
 from sklearn.exceptions import FitFailedWarning
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
+import matplotlib.gridspec as gridspec
 
 import seaborn as sns
 
@@ -195,7 +196,7 @@ class Trainer:
                 param_grid = {"estimator__alphas": [[v] for v in estimated_alphas]},
                 cv = cv,
                 error_score = 0,
-                n_jobs = -1,
+                n_jobs = 5,
             ).fit(scaled_latent_space_train, yTrain)
 
             cv_results = pd.DataFrame(gcv.cv_results_)
@@ -240,6 +241,19 @@ class Trainer:
 
         if non_zero >= 2:
             plot_tsne_coefs(data_points, cols_interest, eval_model.name + "/tsne")
+
+
+        latent_data = zip(latent_cols, latent_idxs)
+        best_coefs = coef_order[-5:]
+        best_indices = [idx for col, idx in latent_data if col in best_coefs]
+
+        print("Best index is", best_indices)
+        data_points_best_coef = np.array(latent_space_train)[:, best_indices]
+
+
+        plot_correlation_coefs(eval_model.data_loader.unroll_batch(eval_model.train_loader, dim=0).cpu().detach().numpy(),
+                         data_points_best_coef,
+                         eval_model.name + "/correlation_best_features", best_indices, eval_model.test_genes)
 
         # Predict using the best model and the test latent space
         cph_risk_scores = best_model.predict(scaled_latent_space_test, alpha = best_alpha)
@@ -453,6 +467,57 @@ def plot_correlation(oriX, predX, dir, geneNames):
     plt.savefig("Results/"+dir)
     plt.clf()
     plt.close()
+
+def plot_correlation_coefs(oriX, predX, dir, latentIdxs ,geneNames):
+    # predX :: 730 x 5
+    # latentIdxs :: 5
+    res = np.corrcoef(oriX.T, predX.T)[np.arange(oriX.shape[1])[np.newaxis, :]
+                            ,np.arange(predX.shape[1])[:, np.newaxis]]
+
+    resList = []
+
+    for idx, lat_idx in enumerate(latentIdxs):
+        sorted_indices = np.argsort(res[idx])
+        # Get the indices of the top 5 values
+        top_indices = sorted_indices[-5:]
+        # Get the top 5 values
+        top_values = res[idx][top_indices]
+        genes = [geneNames[i] for i in top_indices]
+        resList += [(genes, top_values)]
+
+    print("RESULT :: ")
+    print(resList)
+
+    fig = plt.figure(figsize=(12, 8))
+    outer = gridspec.GridSpec(1, 2, wspace=0.5, hspace=0.5)
+
+    # AX 0
+    ax = fig.add_subplot(outer[0])
+    im = ax.imshow(res, cmap='coolwarm', aspect=100 * predX.shape[1])
+    ax.set_yticks([0, 1, 2, 3, 4])
+    ax.set_yticklabels(latentIdxs)
+    fig.colorbar(im, ax=ax)
+
+    # AX 1
+    inner_right = gridspec.GridSpecFromSubplotSpec(5, 1, subplot_spec=outer[1], hspace=1)
+
+    for i in range(5):
+        ax = plt.Subplot(fig, inner_right[i])
+        fig.add_subplot(ax)
+        ypos = np.arange(len(resList[i][0]))
+        ax.barh(ypos, resList[i][1], align='center')
+        ax.set_yticks(ypos)
+        ax.set_yticklabels(resList[i][0])
+        ax.set_xlabel('Correlation')
+        ax.set_title('Latent ' + str(latentIdxs[i]), fontsize=11)
+        ax.grid(axis='x', linestyle='--', alpha=0.7)
+
+    plt.tight_layout()
+    plt.savefig("Results/" + dir)
+    plt.clf()
+    plt.close()
+
+
 
 
 def evaluate_demographic_data(eval_model, survival_functions, demographic_df):
