@@ -196,7 +196,7 @@ class Trainer:
                 param_grid = {"estimator__alphas": [[v] for v in estimated_alphas]},
                 cv = cv,
                 error_score = 0,
-                n_jobs = -1,
+                n_jobs = 6,
             ).fit(scaled_latent_space_train, yTrain)
 
             cv_results = pd.DataFrame(gcv.cv_results_)

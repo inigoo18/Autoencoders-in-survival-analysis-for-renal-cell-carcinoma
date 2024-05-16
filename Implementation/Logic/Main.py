@@ -301,7 +301,7 @@ if __name__ == "__main__":
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
     EPOCHS = 100
-    FOLDS = 10
+    FOLDS = 4
     #COHORTS = ['Avelumab+Axitinib','Sunitinib']
     COHORTS = ['NIVOLUMAB', 'EVEROLIMUS']
     #COHORTS = ['ALL']
