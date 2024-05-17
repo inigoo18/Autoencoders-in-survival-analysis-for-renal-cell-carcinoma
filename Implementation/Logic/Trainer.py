@@ -54,7 +54,7 @@ class Trainer:
         best_validation_loss = float('inf')
         best_model_state = None
         best_epoch = -1
-        scheduler = StepLR(tr_model.optim, step_size=tr_model.epochs // 4, gamma=0.8)
+        scheduler = StepLR(tr_model.optim, step_size=tr_model.epochs // 4, gamma=0.5)
 
         for t in range(tr_model.epochs + 1):
             tr_model.model.train()
