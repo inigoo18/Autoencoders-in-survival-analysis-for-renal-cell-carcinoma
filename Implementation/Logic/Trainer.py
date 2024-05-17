@@ -12,6 +12,7 @@ from sksurv.metrics import cumulative_dynamic_auc, as_concordance_index_ipcw_sco
 from torch.optim.lr_scheduler import StepLR
 from torch_geometric.nn import GAE
 
+from CustomKFoldScikit import CustomKFold
 from Logic.TrainingModel import TrainingModel
 import numpy as np
 import pandas as pd
@@ -189,9 +190,9 @@ class Trainer:
             scaled_latent_space_train = scaler.transform(latent_space_train)
             scaled_latent_space_test = scaler.transform(latent_space_test)
 
-            cv = KFold(n_splits=7, shuffle = True, random_state = 40)
+            cv = CustomKFold(n_splits=7, shuffle = True, random_state = 40)
             gcv = GridSearchCV(
-                as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.5, fit_baseline_model = True, max_iter = 50000, normalize = False)),
+                as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.5, fit_baseline_model = True, max_iter = 80000, normalize = False)),
                 param_grid = {"estimator__alphas": [[v] for v in estimated_alphas]},
                 cv = cv,
                 error_score = 0,
@@ -248,10 +249,6 @@ class Trainer:
 
         print("Best index is", best_indices)
         data_points_best_coef = np.array(latent_space_train)[:, best_indices]
-
-        print("ORIGINAL DATA")
-        print(eval_model.data_loader.get_transcriptomic_data(eval_model.train_loader))
-        print(eval_model.data_loader.get_transcriptomic_data(eval_model.train_loader).shape)
 
         plot_correlation_coefs(eval_model.data_loader.get_transcriptomic_data(eval_model.train_loader),
                          data_points_best_coef,
@@ -423,7 +420,7 @@ def plot_auc(va_times, cph_auc, dir):
     plt.plot(va_times, cph_auc, marker="o")
     plt.axhline(meanRes, linestyle="--")
 
-    plt.xlabel("months from enrollment")
+    plt.xlabel("trimesters from enrollment")
     plt.ylabel("time-dependent AUC")
     plt.title("Area under Curve using best COX PH model with test data")
     plt.grid(True)
