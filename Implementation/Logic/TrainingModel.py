@@ -21,6 +21,7 @@ class TrainingModel():
         self.test_loader = iteration.test_data
         self.val_loader = iteration.val_data
 
+        self.test_genes = iteration.test_genes
         self.cli_vars = cli_vars
 
         # Here we hold a dataframe with all the data regarding test patients

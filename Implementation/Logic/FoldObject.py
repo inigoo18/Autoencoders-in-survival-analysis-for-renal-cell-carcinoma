@@ -12,4 +12,5 @@ class FoldObject():
         self.MSE = []
         self.ROC = []
         self.Reconstruction = []
+        self.OverEstimation = []
         self.name = [str(x) for x in name] # convert enum representations to strings

@@ -4,6 +4,7 @@ import math
 from typing import List
 
 from sklearn.cluster import KMeans
+from sklearn.feature_selection import mutual_info_regression
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import StratifiedKFold, KFold, GridSearchCV
 from sksurv.linear_model import CoxnetSurvivalAnalysis
@@ -11,6 +12,7 @@ from sksurv.metrics import cumulative_dynamic_auc, as_concordance_index_ipcw_sco
 from torch.optim.lr_scheduler import StepLR
 from torch_geometric.nn import GAE
 
+from CustomKFoldScikit import CustomKFold
 from Logic.TrainingModel import TrainingModel
 from Logic.CustomKFoldScikit import CustomKFold
 import numpy as np
@@ -21,6 +23,7 @@ import warnings
 from sklearn.exceptions import FitFailedWarning
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
+import matplotlib.gridspec as gridspec
 
 import seaborn as sns
 
@@ -52,7 +55,7 @@ class Trainer:
         best_validation_loss = float('inf')
         best_model_state = None
         best_epoch = -1
-        scheduler = StepLR(tr_model.optim, step_size=tr_model.epochs // 4, gamma=0.8)
+        scheduler = StepLR(tr_model.optim, step_size=tr_model.epochs // 4, gamma=0.5)
 
         for t in range(tr_model.epochs + 1):
             tr_model.model.train()
@@ -152,6 +155,7 @@ class Trainer:
         latent_space_train = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.train_loader, dim = 0)).cpu().detach().numpy()
         latent_space_test = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=0)).cpu().detach().numpy()
 
+
         # We add clinical variables
         latent_space_train = np.concatenate((latent_space_train, eval_model.data_loader.unroll_batch(eval_model.train_loader, dim=1).cpu().detach().numpy()), axis = 1)
         latent_space_test = np.concatenate((latent_space_test, eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=1).cpu().detach().numpy()), axis = 1)
@@ -190,13 +194,13 @@ class Trainer:
             scaled_latent_space_train = scaler.transform(latent_space_train)
             scaled_latent_space_test = scaler.transform(latent_space_test)
 
-            cv = CustomKFold(n_splits=3, shuffle = True, random_state=41)
+            cv = CustomKFold(n_splits=7, shuffle = True, random_state = 40)
             gcv = GridSearchCV(
-                as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.5, fit_baseline_model = True, max_iter = 120000, normalize = False)),
+                as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.5, fit_baseline_model = True, max_iter = 80000, normalize = False)),
                 param_grid = {"estimator__alphas": [[v] for v in estimated_alphas]},
                 cv = cv,
                 error_score = 0,
-                n_jobs = 6,
+                n_jobs = 5,
             ).fit(scaled_latent_space_train, yTrain)
 
             cv_results = pd.DataFrame(gcv.cv_results_)
@@ -245,6 +249,18 @@ class Trainer:
         if non_zero >= 2:
             plot_tsne_coefs(data_points, cols_interest, eval_model.name + "/tsne")
 
+
+        latent_data = zip(latent_cols, latent_idxs)
+        best_coefs = coef_order[-5:]
+        best_indices = [idx for col, idx in latent_data if col in best_coefs]
+
+        print("Best index is", best_indices)
+        data_points_best_coef = np.array(latent_space_train)[:, best_indices]
+
+        plot_correlation_coefs(eval_model.data_loader.get_transcriptomic_data(eval_model.train_loader),
+                         data_points_best_coef,
+                         eval_model.name + "/correlation_best_features", best_indices, eval_model.test_genes)
+
         # Predict using the best model and the test latent space
         cph_risk_scores = best_model.predict(scaled_latent_space_test, alpha = best_alpha)
 
@@ -277,7 +293,9 @@ class Trainer:
 
         mseError = evaluate_demographic_data(eval_model, survival_functions, demographic_DF)
 
-        return meanRes, mseError
+        percentageOverEstimation = (demographic_DF['predicted_PFS'] > demographic_DF['PFS_P']).mean() * 100
+
+        return meanRes, mseError, percentageOverEstimation
 
 
 
@@ -410,7 +428,7 @@ def plot_auc(va_times, cph_auc, dir):
     plt.plot(va_times, cph_auc, marker="o")
     plt.axhline(meanRes, linestyle="--")
 
-    plt.xlabel("months from enrollment")
+    plt.xlabel("trimesters from enrollment")
     plt.ylabel("time-dependent AUC")
     plt.title("Area under Curve using best COX PH model with test data")
     plt.grid(True)
@@ -418,6 +436,61 @@ def plot_auc(va_times, cph_auc, dir):
     plt.clf()
     plt.close()
     return meanRes
+
+
+def plot_correlation_coefs(oriX, predX, dir, latentIdxs ,geneNames):
+    # predX :: 730 x 5
+    # latentIdxs :: 5
+
+    mutual_informations = []
+    for idx in range(len(latentIdxs)):
+        mutual_informations += [mutual_info_regression(oriX, predX[:, idx])]
+
+    resList = []
+
+    for idx, lat_idx in enumerate(latentIdxs):
+        sorted_indices = np.argsort(mutual_informations[idx])
+        # Get the indices of the top 5 values
+        top_indices = sorted_indices[-5:]
+        # Get the top 5 values
+        top_values = mutual_informations[idx][top_indices]
+        genes = [geneNames[i] for i in top_indices]
+        resList += [(genes, top_values)]
+
+    print("RESULT :: ")
+    print(resList)
+
+    fig = plt.figure(figsize=(12, 8))
+    outer = gridspec.GridSpec(1, 2, wspace=0.5, hspace=0.5)
+
+    # AX 0
+    ax = fig.add_subplot(outer[0])
+    im = ax.imshow(mutual_informations, cmap='coolwarm', aspect=100 * predX.shape[1])
+    ax.set_yticks([0, 1, 2, 3, 4])
+    ax.set_yticklabels(latentIdxs)
+    fig.colorbar(im, ax=ax)
+
+    # AX 1
+    inner_right = gridspec.GridSpecFromSubplotSpec(5, 1, subplot_spec=outer[1], hspace=1)
+
+    for i in range(5):
+        ax = plt.Subplot(fig, inner_right[i])
+        fig.add_subplot(ax)
+        ypos = np.arange(len(resList[i][0]))
+        ax.barh(ypos, resList[i][1], align='center')
+        ax.set_yticks(ypos)
+        ax.set_yticklabels(resList[i][0])
+        ax.set_xlabel('Mutual information')
+        ax.set_title('Latent ' + str(latentIdxs[i]), fontsize=11)
+        ax.grid(axis='x', linestyle='--', alpha=0.7)
+
+    plt.tight_layout()
+    plt.savefig("Results/" + dir)
+    plt.clf()
+    plt.close()
+
+
+
 
 def evaluate_demographic_data(eval_model, survival_functions, demographic_df):
     # Calculate MSE
