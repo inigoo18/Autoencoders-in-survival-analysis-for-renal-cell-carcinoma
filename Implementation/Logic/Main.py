@@ -289,13 +289,13 @@ def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS, pvalues_cohort, pva
 
 
 if __name__ == "__main__":
-    option = "Tabular"
+    option = "Graph"
     WITH_HISTOLOGY = False
 
     torch.manual_seed(42)
     np.random.seed(42)
 
-    L = 64
+    L = 32
     loss_args = {'noise_factor': 0.01, 'reg_param': 0.10, 'rho': 0.001}
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
