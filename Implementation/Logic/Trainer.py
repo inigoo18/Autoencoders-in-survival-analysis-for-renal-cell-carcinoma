@@ -172,31 +172,35 @@ class Trainer:
 
         TRIES = 3
         non_zero = 0
-        offset = 0.8
+        offset = 0.9
 
         start = 0.0001
         stop = 0.01
         step = 0.0002
 
-        while non_zero == 0 and TRIES > 0:
+        OK = False
+        while not OK:
+            OK = True
             estimated_alphas = np.arange(start, stop + step, step)
 
             # we remove warnings when coefficients in Cox PH model are 0
             warnings.simplefilter("ignore", UserWarning)
             warnings.simplefilter("ignore", FitFailedWarning)
+            warnings.simplefilter("ignore", ArithmeticError)
 
             scaler = StandardScaler()
             scaler.fit(latent_space_train)
             scaled_latent_space_train = scaler.transform(latent_space_train)
             scaled_latent_space_test = scaler.transform(latent_space_test)
 
-            cv = CustomKFold(n_splits=7, shuffle = True, random_state = 40)
+            cv = CustomKFold(n_splits=7, shuffle=True, random_state=40)
             gcv = GridSearchCV(
-                as_concordance_index_ipcw_scorer(CoxnetSurvivalAnalysis(l1_ratio=0.5, fit_baseline_model = True, max_iter = 80000, normalize = False)),
-                param_grid = {"estimator__alphas": [[v] for v in estimated_alphas]},
-                cv = cv,
-                error_score = 0,
-                n_jobs = 5,
+                as_concordance_index_ipcw_scorer(
+                    CoxnetSurvivalAnalysis(l1_ratio=0.5, fit_baseline_model=True, max_iter=80000, normalize=False)),
+                param_grid={"estimator__alphas": [[v] for v in estimated_alphas]},
+                cv=cv,
+                error_score=0,
+                n_jobs=5,
             ).fit(scaled_latent_space_train, yTrain)
 
             cv_results = pd.DataFrame(gcv.cv_results_)
@@ -211,16 +215,19 @@ class Trainer:
 
             plot_cindex(alphas, mean, std, best_alpha, eval_model.name + "/c-index")
 
-
             non_zero = np.sum(best_coefs.iloc[:, 0] != 0)
             print(f"Number of non-zero coefficients: {non_zero}")
 
-            if non_zero == 0:
+            survival_functions_tmp = best_model.predict_survival_function(scaled_latent_space_test, best_alpha)
+
+            if non_zero == 0 or np.isnan(survival_functions_tmp[0].y).any():
+                OK = False
                 TRIES -= 1
                 start *= offset
                 step *= offset
                 stop *= offset
-                print("All coefficients are 0... Tries left: " + str(TRIES) + " with start: " + str(start))
+                print("All coefficients are 0 or survival functions are undefined... Tries left: " + str(
+                    TRIES) + " with start: " + str(start))
                 if TRIES == 0:
                     return np.nan, np.nan
 
