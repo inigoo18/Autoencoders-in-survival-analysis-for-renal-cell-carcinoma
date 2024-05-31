@@ -257,9 +257,9 @@ class Trainer:
         print("Best index is", best_indices)
         data_points_best_coef = np.array(latent_space_train)[:, best_indices]
 
-        plot_correlation_coefs(eval_model.data_loader.get_transcriptomic_data(eval_model.train_loader),
-                         data_points_best_coef,
-                         eval_model.name + "/correlation_best_features", best_indices, eval_model.test_genes)
+        #plot_correlation_coefs(eval_model.data_loader.get_transcriptomic_data(eval_model.train_loader),
+        #                 data_points_best_coef,
+        #                 eval_model.name + "/correlation_best_features", best_indices, eval_model.test_genes)
 
         # Predict using the best model and the test latent space
         cph_risk_scores = best_model.predict(scaled_latent_space_test, alpha = best_alpha)
