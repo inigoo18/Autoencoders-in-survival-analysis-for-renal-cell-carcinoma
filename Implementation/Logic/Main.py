@@ -115,6 +115,7 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
         combinations += [losses]
 
     combinations = [[], [LossType.DENOISING], [LossType.SPARSE_KL], [LossType.VARIATIONAL], [LossType.DENOISING, LossType.SPARSE_KL]]#[[LossType.VARIATIONAL]]
+
     cohortResults = {}
 
     for cohort in COHORTS:
@@ -289,14 +290,14 @@ def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS, pvalues_cohort, pva
 
 
 if __name__ == "__main__":
-    option = "Graph"
+    option = "Tabular"
     WITH_HISTOLOGY = False
 
     torch.manual_seed(42)
     np.random.seed(42)
 
-    L = 128
-    loss_args = {'noise_factor': 0.01, 'reg_param': 0.10, 'rho': 0.001}
+    L = 64
+    loss_args = {'noise_factor': 0.001, 'reg_param': 0.10, 'rho': 0.001}
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
     EPOCHS = 100
