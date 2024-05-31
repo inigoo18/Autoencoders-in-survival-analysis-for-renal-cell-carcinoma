@@ -70,26 +70,14 @@ class TabularDataLoader:
         :param val_ratio: float value representing val ratio
         :return: train, test and val sets (DFs)
         '''
-        A_indices = tabular_data[tabular_data['PFS_P_CNSR'] == 0].index
-        B_indices = tabular_data[tabular_data['PFS_P_CNSR'] == 1].index
 
-        # Splitting A_indices into training, testing, and validation sets
-        A_train, A_temp = train_test_split(A_indices, test_size=test_ratio + val_ratio, random_state=42)
-        A_test, A_val = train_test_split(A_temp, test_size=val_ratio / (test_ratio + val_ratio), random_state=42)
+        test_separation = int(len(tabular_data) * test_ratio)
 
-        # Splitting B_indices into training, testing, and validation sets
-        B_train, B_temp = train_test_split(B_indices, test_size=test_ratio + val_ratio, random_state=42)
-        B_test, B_val = train_test_split(B_temp, test_size=val_ratio / (test_ratio + val_ratio), random_state=42)
+        train_data = tabular_data[test_separation:]
+        test_data = tabular_data[:test_separation]
 
-        # Combining the sets
-        train_indices = list(A_train) + list(B_train)
-        test_indices = list(A_test) + list(B_test)
-        val_indices = list(A_val) + list(B_val)
-
-        # Creating the sets
-        train_set = tabular_data.loc[train_indices]
-        test_set = tabular_data.loc[test_indices]
-        val_set = tabular_data.loc[val_indices]
+        train_set, val_set = train_test_split(train_data, test_size = val_ratio, random_state = 32)
+        test_set = test_data
 
         train_set, test_set = validate_test_set(train_set, test_set)
 

@@ -37,24 +37,14 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
     current_directory = os.getcwd()
     somepath = os.path.abspath(
         os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_tabular_R3.csv'))
-    losses = [LossType.DENOISING, LossType.SPARSE_KL]#, LossType.VARIATIONAL]
-
-    combinations = [[]]
-    combinations.extend([[loss] for loss in losses])
-
-    for i in range(len(losses)):
-        for j in range(i + 1, len(losses)):
-            combinations.append([losses[i], losses[j]])
-
-    if losses not in combinations:
-        combinations += [losses]
 
     combinations = [[], [LossType.DENOISING], [LossType.SPARSE_KL], [LossType.VARIATIONAL], [LossType.DENOISING, LossType.SPARSE_KL]]
+    combinations = [[]]
     cohortResults = {}
 
 
     for cohort in COHORTS:
-        d = TabularDataLoader(somepath, ['PFS_P', 'PFS_P_CNSR'], clinicalVars, 0.2, 0.1, BATCH_SIZE, FOLDS, cohort)  # 70% train, 20% test, 10% val
+        d = TabularDataLoader(somepath, ['PFS_P', 'PFS_P_CNSR'], clinicalVars, (1/FOLDS), 0.2, BATCH_SIZE, FOLDS, cohort)  # 70% train, 20% test, 10% val
         foldObjects = []
         for comb in combinations:
             print(comb)
@@ -102,23 +92,12 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
     somepath = os.path.abspath(
         os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_graph_R3.pkl'))
 
-    losses = [LossType.DENOISING, LossType.SPARSE_KL, LossType.VARIATIONAL]
-
-    combinations = [[]]
-    combinations.extend([[loss] for loss in losses])
-
-    for i in range(len(losses)):
-        for j in range(i + 1, len(losses)):
-            combinations.append([losses[i], losses[j]])
-
-    if losses not in combinations:
-        combinations += [losses]
-
     combinations = [[], [LossType.DENOISING], [LossType.SPARSE_KL], [LossType.VARIATIONAL], [LossType.DENOISING, LossType.SPARSE_KL]]#[[LossType.VARIATIONAL]]
+    combinations = [[]]
     cohortResults = {}
 
     for cohort in COHORTS:
-        d = GraphDataLoader(somepath, ['PFS_P', 'PFS_P_CNSR'], clinicalVars, 0.2, 0.1,
+        d = GraphDataLoader(somepath, ['PFS_P', 'PFS_P_CNSR'], clinicalVars, (1/FOLDS), 0.15,
                             BATCH_SIZE, FOLDS, cohort)  # 70% train, 20% test, 10% val
         foldObjects = []
         for comb in combinations:
@@ -131,7 +110,7 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
                 vaeModel = GNNVariationalExample(1, d.input_dim, L, BATCH_SIZE)
                 if LossType.VARIATIONAL in comb:
                     aeModel = vaeModel
-                optim = torch.optim.Adam(aeModel.parameters(), lr=0.0001)
+                optim = torch.optim.Adam(aeModel.parameters(), lr=0.00001)
                 instanceModel = TrainingModel(title, d, foldObject.iterations[fold], clinicalVars,
                                               aeModel, loss_fn, optim, EPOCHS, BATCH_SIZE, L,
                                               True)  # , 'best_model_loss_1478.pth')
@@ -289,14 +268,14 @@ def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS, pvalues_cohort, pva
 
 
 if __name__ == "__main__":
-    option = "Graph"
+    option = "Tabular"
     WITH_HISTOLOGY = False
 
     torch.manual_seed(42)
     np.random.seed(42)
 
-    L = 128
-    loss_args = {'noise_factor': 0.01, 'reg_param': 0.10, 'rho': 0.001}
+    L = 64
+    loss_args = {'noise_factor': 0.001, 'reg_param': 0.10, 'rho': 0.001}
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
     EPOCHS = 100
