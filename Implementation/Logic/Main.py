@@ -92,8 +92,7 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
     somepath = os.path.abspath(
         os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_graph_R3.pkl'))
 
-    combinations = [[], [LossType.DENOISING], [LossType.SPARSE_KL], [LossType.VARIATIONAL], [LossType.DENOISING, LossType.SPARSE_KL]]#[[LossType.VARIATIONAL]]
-    combinations = [[]]
+    combinations = [[], [LossType.DENOISING], [LossType.SPARSE_KL], [LossType.VARIATIONAL], [LossType.DENOISING, LossType.SPARSE_KL]]
     cohortResults = {}
 
     for cohort in COHORTS:
