@@ -5,6 +5,7 @@ from sklearn.preprocessing import MinMaxScaler
 import random
 import numpy as np
 from torch.utils.data import DataLoader
+import math
 
 from Logic.CustomDataset import CustomDataset
 from Logic.IterationObject import IterationObject
@@ -30,6 +31,8 @@ class TabularDataLoader:
         dataframe = dataframe.astype('float32')
 
         dataframe = normalize_data(dataframe, cli_vars)
+
+        dataframe = reorder_dataframe(dataframe)
 
         allDatasets = []
         allColumnNames = []
@@ -208,3 +211,43 @@ def validate_test_set(train_df, test_df):
         train_df, test_df = swap_patients(train_df, test_df, train_pat, test_pat)
 
     return train_df, test_df
+
+
+def merge_lists(A, B, step):
+    new_list = []
+    len_A = len(A)
+    len_B = len(B)
+
+    i, j = 0, 0
+
+    while i < len_A or j < len_B:
+        # Append step elements from A
+        for _ in range(step):
+            if i < len_A:
+                new_list.append(A[i])
+                i += 1
+
+        # Append one element from B
+        if j < len_B:
+            new_list.append(B[j])
+            j += 1
+
+    return new_list
+
+def reorder_dataframe(gene_data):
+    A_indices = gene_data[gene_data['PFS_P_CNSR'] == 0].index
+    B_indices = gene_data[gene_data['PFS_P_CNSR'] == 1].index
+
+    step = math.floor(max(len(A_indices), len(B_indices)) / min(len(A_indices), len(B_indices)))
+    maxIndices, minIndices = None, None
+
+    if len(A_indices) > len(B_indices):
+        maxIndices = A_indices
+        minIndices = B_indices
+    else:
+        maxIndices = B_indices
+        minIndices = A_indices
+
+    DF_indices = merge_lists(A_indices, B_indices, step)
+    gene_data = gene_data.loc[DF_indices]
+    return gene_data
