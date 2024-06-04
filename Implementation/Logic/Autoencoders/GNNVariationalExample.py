@@ -14,9 +14,8 @@ from Logic.Autoencoders.VariationalExample import VariationalExample
 class GNNVariationalExample(nn.Module):
     def __init__(self, num_features, input_dim, L, batch_size):
         super(GNNVariationalExample, self).__init__()
-        self.conv = GCNConv(num_features,
-                            num_features)  # SimpleConv(aggr = "median", combine_root = "self_loop") # aggr :: [sum, mean, mul]
         self.genConv = GeneralConv(num_features, num_features, aggr='mean')
+        # We instantiate the variational autoencoder
         self.model = VariationalExample(input_dim, L)
         self.encoder = self.model.encoder
         self.decoder = self.model.decoder
@@ -24,9 +23,8 @@ class GNNVariationalExample(nn.Module):
         self.input_dim = input_dim
         self.num_features = num_features
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.dropout = nn.Dropout(p=0.15)
+        self.dropout = nn.Dropout(p=0.1)
         self.lrelu = nn.LeakyReLU()
-        self.batchNorm = nn.BatchNorm1d(num_features)
 
     def convolute(self, data):
         xs = torch.tensor([]).to(self.device)

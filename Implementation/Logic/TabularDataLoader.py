@@ -24,23 +24,30 @@ class TabularDataLoader:
         self.cli_vars = cli_vars
         self.pred_vars = pred_vars
 
+        # we shuffle the dataset so that censored and uncensored patients alternate. This way, when we do cross-val,
+        # we have a sufficient number of censored and uncensored patients within each fold
+        dataframe = reorder_dataframe(dataframe)
+
+        # we filter by a specific treatment arm
         dataframe = filter_cohort(dataframe, cohort)
 
         self.input_dim = len(dataframe.columns) - len(cli_vars) - len(pred_vars)
 
         dataframe = dataframe.astype('float32')
 
+        # normalize the dataset with the maximal transcriptomic value
         dataframe = normalize_data(dataframe, cli_vars)
-
-        dataframe = reorder_dataframe(dataframe)
 
         allDatasets = []
         allColumnNames = []
 
+        # for each fold...
         for fold in range(folds):
 
+            # we shift the data one fold
             dataframe = shift_data(dataframe, folds)
 
+            # we create train, test, val sets using cross validation.
             train_set, test_set, val_set = self.train_test_val_split(dataframe, test_ratio, val_ratio)
 
             train_loader = self.custom_loader(train_set)
@@ -51,12 +58,18 @@ class TabularDataLoader:
             test_loader = list(create_batches(test_loader, batch_size))
             val_loader = list(create_batches(val_loader, batch_size))
 
+            # this IterationObject allows us to keep track of the train, test and val sets for a given fold
             it = IterationObject(train_loader, test_loader, val_loader, test_set.columns)
             allDatasets += [it]
 
         self.allDatasets = allDatasets
 
     def custom_loader(self, DF):
+        '''
+        We initialize a CustomDataset class that takes in the genetic, clinical and features to be predicted.
+        :param DF: the dataframe we're currently using
+        :return: CustomDataset object with genetic, clinical and predictor variables.
+        '''
         DF_gen = DF.drop(self.pred_vars + self.cli_vars, axis=1).values
         DF_cli = DF[self.cli_vars].values
         pred_vals = self.prepare_labels(DF[self.pred_vars])
@@ -66,10 +79,10 @@ class TabularDataLoader:
 
     def train_test_val_split(self, tabular_data, test_ratio, val_ratio):
         '''
-        Method that takes the general DF and separates it into train/test/val DFs while keeping the CENSOR variable
-        in similar proportions between dataframes
+        Method that takes the general DF and separates it into train/test using cross-val, then train set is further
+        separated into train/val.
         :param tabular_data: DF
-        :param test_ratio: float value representing test ratio
+        :param test_ratio: float value representing test ratio (if 10 folds, then 1/10)
         :param val_ratio: float value representing val ratio
         :return: train, test and val sets (DFs)
         '''
@@ -112,12 +125,23 @@ class TabularDataLoader:
         return res
 
     def get_transcriptomic_data(self, data):
+        '''
+        Helper function that calls unroll_batch, and detaches the tensor, since scikit-surv cannot take in tensors.
+        :param data: data ordered by batches
+        :return: all samples in a numpy array
+        '''
         return self.unroll_batch(data, 0).cpu().detach().numpy()
 
 
 
 
 def create_batches(loader, batch_size):
+    '''
+    Creates a DataLoader instance, which keeps track of the different batches.
+    :param loader: whether train, test or val loader
+    :param batch_size: size of the batch
+    :return:
+    '''
     return DataLoader(loader, batch_size = batch_size, shuffle = False)
 
 
@@ -165,6 +189,9 @@ def filter_cohort(df, cohort):
     return df
 
 def swap_patients(train_df, test_df, train_pat, test_pat):
+    '''
+    Method used in validate_test_set to make sure the invariant holds (check validate_test_set). Performs a simple swap
+    '''
     train_df_t = train_df.drop(train_pat.name)
     test_df_t = test_df.drop(test_pat.name)
     train_df_t.loc[test_pat.name] = test_pat
@@ -202,6 +229,14 @@ def validate_test_set(train_df, test_df):
 
 
 def merge_lists(A, B, step):
+    '''
+    Merges two lists A and B using a specific 'step'. This is used to reorder the dataset so that censored and
+    uncensored patients are spread uniformly.
+    :param A: a list
+    :param B: another list
+    :param step: step to integrate B within A
+    :return:
+    '''
     new_list = []
     len_A = len(A)
     len_B = len(B)
@@ -223,6 +258,10 @@ def merge_lists(A, B, step):
     return new_list
 
 def reorder_dataframe(gene_data):
+    '''
+    Method used to make sure that the censored and uncensored patients are spread uniformly in the dataset.
+    This allows us to make folds where, in each one of them, are censored/uncensored patients.
+    '''
     A_indices = gene_data[gene_data['PFS_P_CNSR'] == 0].index
     B_indices = gene_data[gene_data['PFS_P_CNSR'] == 1].index
 
@@ -236,6 +275,6 @@ def reorder_dataframe(gene_data):
         maxIndices = B_indices
         minIndices = A_indices
 
-    DF_indices = merge_lists(A_indices, B_indices, step)
+    DF_indices = merge_lists(maxIndices, minIndices, step)
     gene_data = gene_data.loc[DF_indices]
     return gene_data

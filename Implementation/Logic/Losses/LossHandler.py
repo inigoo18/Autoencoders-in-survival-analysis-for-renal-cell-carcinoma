@@ -9,11 +9,17 @@ from Logic.Losses.LossType import LossType
 
 class LossHandler():
 
-    def __init__(self, loss_types, args, adj_matrix = None):
+    '''
+    This class handles different penalties for loss.
+    '''
+
+    def __init__(self, loss_types, args, isGNN):
         self.loss_types = loss_types
         self.args = args
-        self.loss_dict_tr = {}  # here we keep count of the different losses we have
+        # In these two dictionaries we keep track of the losses we have, depending on whether its MSE, SPARSE, etc.
+        self.loss_dict_tr = {}
         self.loss_dict_val = {}
+        # We add MSE in the constructor because it will always be considered
         self.loss_dict_tr['MSE'] = []
         self.loss_dict_val['MSE'] = []
         for loss_type in loss_types:
@@ -22,7 +28,7 @@ class LossHandler():
                 self.loss_dict_val[str(loss_type)] = []
         self.check_arguments()
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.adj_matrix = adj_matrix
+        self.isGNN = isGNN
 
     def check_arguments(self):
         keys = []
@@ -36,9 +42,6 @@ class LossHandler():
         if not (all(key in self.args for key in keys)):
             print("ERROR :: a loss type was specified but the required arguments aren't")
 
-
-    def clear(self):
-        self.loss_dict = {}
 
     def initialize_loss(self, data, isGNN):
         '''
@@ -90,6 +93,9 @@ class LossHandler():
         return TOTAL
 
     def _add_loss(self, mode, name, val):
+        '''
+        Private method to add an item to our loss dictionaries, whether its training or validation
+        '''
         if (mode == 'Train'):
             self.loss_dict_tr[name] += [val.item()]
         else:
@@ -97,28 +103,15 @@ class LossHandler():
 
 
     def compute_loss(self, mode, X, predX, params = None, mean = None, log_var = None):
+        # We compute the traditional MSE loss whether its training or validation
         total_loss = 0
-        if self.adj_matrix is None:
+        if self.isGNN == False:
             criterion = nn.MSELoss(reduction='sum')
             total_loss = criterion(X, predX)
         else:
             criterion = nn.MSELoss(reduction = 'sum')
-
             x_features = torch.reshape(X.x, (predX.shape[0], predX.shape[1])).to(self.device)
-
             total_loss = criterion(x_features, predX)
-
-            #adjacency_loss = 0
-            #outer_product = torch.matmul(predX[:, :, None].to(self.device), predX[:, None, :].to(self.device)).to(self.device)
-            #adjacency_res = [nn.BCEWithLogitsLoss()(x.flatten(), self.adj_matrix.flatten()) for x in outer_product]
-            #adjacency_loss = torch.sum(torch.stack(adjacency_res))
-
-            #for x_i in predX:
-            #    adjacency_pred = torch.ger(x_i, x_i.t())
-            #    adjacency_loss += nn.BCEWithLogitsLoss()(adjacency_pred.flatten(), self.adj_matrix.flatten())
-
-            #total_loss += adjacency_loss
-
 
         self._add_loss(mode, 'MSE', total_loss)
 

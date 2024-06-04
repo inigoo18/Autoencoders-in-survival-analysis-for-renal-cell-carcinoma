@@ -14,10 +14,8 @@ from Logic.Autoencoders.MinWorkingExample import MWE_AE
 class GNNExample(nn.Module):
     def __init__(self, num_features, input_dim, L, batch_size):
         super(GNNExample, self).__init__()
-        self.conv = GCNConv(num_features, num_features) # SimpleConv(aggr = "median", combine_root = "self_loop") # aggr :: [sum, mean, mul]
-        self.conv2 = GCNConv(num_features,
-                            num_features)  # SimpleConv(aggr = "median", combine_root = "self_loop") # aggr :: [sum, mean, mul]
         self.genConv = GeneralConv(num_features, num_features, aggr = 'mean')
+        # We instantiate the tabular model to use it after the graph convolution
         model = MWE_AE(input_dim, L)
         self.encoder = model.encoder
         self.decoder = model.decoder
@@ -26,9 +24,7 @@ class GNNExample(nn.Module):
         self.num_features = num_features
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.dropout = nn.Dropout(p=0.1)
-        self.prelu = nn.PReLU()
         self.lrelu = nn.LeakyReLU()
-        self.batchNorm = nn.BatchNorm1d(num_features)
 
 
     def convolute(self, data):

@@ -24,7 +24,7 @@ import matplotlib.patches as mpatches
 
 def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS, WITH_HISTOLOGY):
     '''
-        Pipeline for the graph autoencoder. (look at tabular implementation for more comments)
+        Pipeline for the tabular autoencoder.
         :param BATCH_SIZE: size of the batch for the data loader
         :param L: latent dimensionality
         :param loss_args: dictionary specifying the value of each loss
@@ -39,24 +39,23 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
         os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_tabular_R3.csv'))
 
     combinations = [[], [LossType.DENOISING], [LossType.SPARSE_KL], [LossType.VARIATIONAL], [LossType.DENOISING, LossType.SPARSE_KL]]
-    combinations = [[]]
     cohortResults = {}
 
 
     for cohort in COHORTS:
-        d = TabularDataLoader(somepath, ['PFS_P', 'PFS_P_CNSR'], clinicalVars, (1/FOLDS), 0.2, BATCH_SIZE, FOLDS, cohort)  # 70% train, 20% test, 10% val
+        d = TabularDataLoader(somepath, ['PFS_P', 'PFS_P_CNSR'], clinicalVars, (1/FOLDS), 0.2, BATCH_SIZE, FOLDS, cohort)
         foldObjects = []
         for comb in combinations:
-            print(comb)
+            print("Next combination: " + str(comb))
             foldObject = FoldObject(comb, FOLDS, d.allDatasets)
             for fold in range(FOLDS):
                 title = "TAB{{L_"+str(L) + "_F_" + str(fold) + "_C_" + cohort + "_" + '+'.join(str(loss.name) for loss in comb)
-                loss_fn = LossHandler(comb, loss_args)
+                loss_fn = LossHandler(comb, loss_args, False)
                 aeModel = MWE_AE(d.input_dim, L)
                 vaeModel = VariationalExample(d.input_dim, L)
                 if LossType.VARIATIONAL in comb:
                     aeModel = vaeModel
-                optim = torch.optim.Adam(aeModel.parameters(), lr = 0.0001)
+                optim = torch.optim.Adam(aeModel.parameters(), lr = 0.0005)
                 instanceModel = TrainingModel(title, d, foldObject.iterations[fold], clinicalVars,
                                             aeModel, loss_fn, optim, EPOCHS, BATCH_SIZE, L, False)#, 'best_model_loss_1478.pth')
 
@@ -96,20 +95,20 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
     cohortResults = {}
 
     for cohort in COHORTS:
-        d = GraphDataLoader(somepath, ['PFS_P', 'PFS_P_CNSR'], clinicalVars, (1/FOLDS), 0.15,
-                            BATCH_SIZE, FOLDS, cohort)  # 70% train, 20% test, 10% val
+        d = GraphDataLoader(somepath, ['PFS_P', 'PFS_P_CNSR'], clinicalVars, (1/FOLDS), 0.2,
+                            BATCH_SIZE, FOLDS, cohort)
         foldObjects = []
         for comb in combinations:
-            print(comb)
+            print("Next combination: " + str(comb))
             foldObject = FoldObject(comb, FOLDS, d.allDatasets)
             for fold in range(FOLDS):
                 title = "GPH{{L_"+str(L) + "_F_" + str(fold) + "_C_" + cohort + "_" + '+'.join(str(loss.name) for loss in comb)
-                loss_fn = LossHandler(comb, loss_args, d.adjacency_matrix)
+                loss_fn = LossHandler(comb, loss_args, True)
                 aeModel = GNNExample(1, d.input_dim, L, BATCH_SIZE)
                 vaeModel = GNNVariationalExample(1, d.input_dim, L, BATCH_SIZE)
                 if LossType.VARIATIONAL in comb:
                     aeModel = vaeModel
-                optim = torch.optim.Adam(aeModel.parameters(), lr=0.00001)
+                optim = torch.optim.Adam(aeModel.parameters(), lr=0.0005)
                 instanceModel = TrainingModel(title, d, foldObject.iterations[fold], clinicalVars,
                                               aeModel, loss_fn, optim, EPOCHS, BATCH_SIZE, L,
                                               True)  # , 'best_model_loss_1478.pth')
@@ -130,6 +129,15 @@ def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS
 
 
 def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
+    '''
+    This method creates graphs for the different result metrics, whether its reconstruction, AUC or PFS loss
+    :param names: names of the penalties
+    :param ys: the results we've obtained
+    :param typename: specifies the metric we're measuring
+    :param L: latent dimensionality for title
+    :param FOLDS: how many folds for title
+    :param COHORTS: the cohorts we have used
+    '''
     colors = ['skyblue', 'orange', 'green', 'red', 'purple']
     plt.figure(figsize=(10, 8))
 
@@ -191,6 +199,19 @@ def visualize_results(names, ys, typename, L, FOLDS, COHORTS):
 
 
 def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS, pvalues_cohort, pvalues_model):
+    '''
+    Method that converts the results to an excel sheet, with additional information such as p-values and the
+    results for each fold
+    :param names: name of the penalties
+    :param ys: the results we've obtained
+    :param typename: specifies the metric we're measuring
+    :param L: latent dimensionality for title
+    :param FOLDS: number of folds for title
+    :param COHORTS: the cohorts we have used
+    :param pvalues_cohort: the pvalues comparing the difference between cohorts
+    :param pvalues_model: the pvalues comparing the difference of the penalties with the non penalty autoencoder.
+    :return:
+    '''
 
     workbook = xlsxwriter.Workbook("Results/" + "Excel_L" + str(L) + "_F" + str(FOLDS) + "_" + typename + ".xlsx")
     worksheet = workbook.add_worksheet()
@@ -267,23 +288,30 @@ def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS, pvalues_cohort, pva
 
 
 if __name__ == "__main__":
-    option = "Tabular"
+    # Option specifies either 'Tabular' or 'Graph'.
+    # WITH_HISTOLOGY can be set to true if we want to consider all of the histology features.
+    option = "Graph"
     WITH_HISTOLOGY = False
 
+    # We set the randomness to 42 for reproducibility
     torch.manual_seed(42)
     np.random.seed(42)
 
+    # Latent dimensionality, penalty hyperparameters, and the clinical (+ histology) features to consider
     L = 64
     loss_args = {'noise_factor': 0.001, 'reg_param': 0.10, 'rho': 0.001}
     clinicalVars = ['MATH', 'HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA',
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
-    EPOCHS = 100
-    FOLDS = 10
-    COHORTS = ['Avelumab+Axitinib','Sunitinib'] # ['Avelumab+Axitinib'] # ['ALL','Avelumab+Axitinib','Sunitinib']
+    # Number of epochs, folds, and which arms (here named COHORTS) we want to measure. Cohorts can be set to ['ALL'] in case
+    # we do not want to differentiate between arms
+    EPOCHS = 10
+    FOLDS = 4
+    COHORTS = ['Avelumab+Axitinib','Sunitinib']
 
     if WITH_HISTOLOGY is False:
         clinicalVars = ['HE_TUMOR_CELL_CONTENT_IN_TUMOR_AREA', 'PD-L1_TOTAL_IMMUNE_CELLS_PER_TUMOR_AREA']
 
+    # Batch size and initialization of our work
     if option == "Tabular":
         BATCH_SIZE = 16
         foldObjects, combinations = tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS, WITH_HISTOLOGY)
@@ -291,15 +319,16 @@ if __name__ == "__main__":
         BATCH_SIZE = 16
         foldObjects, combinations = graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS, WITH_HISTOLOGY)
 
+    # We grab the specific metrics out of the 'FoldObject' object, which holds the different metrics
+    # obtained for each fold.
     namedCombs = [[str(x) for x in y] for y in combinations]
     foldMSE = [[fold.MSE for fold in foldObjects[cohort]] for cohort in COHORTS]
     foldROC = [[fold.ROC for fold in foldObjects[cohort]] for cohort in COHORTS]
     foldRec = [[fold.Reconstruction for fold in foldObjects[cohort]] for cohort in COHORTS]
     foldOverEstimation = [[fold.OverEstimation for fold in foldObjects[cohort]] for cohort in COHORTS]
 
+    # We use the visualize_results method to obtain figures + excel sheets of the result.
     visualize_results(namedCombs, foldMSE, 'MSE', L, FOLDS, COHORTS)
     visualize_results(namedCombs, foldROC, 'ROC', L, FOLDS, COHORTS)
     visualize_results(namedCombs, foldRec, 'Reconstruction', L, FOLDS, COHORTS)
     visualize_results(namedCombs, foldOverEstimation, 'OverEstimation', L, FOLDS, COHORTS)
-
-    print("FINISHED!!")

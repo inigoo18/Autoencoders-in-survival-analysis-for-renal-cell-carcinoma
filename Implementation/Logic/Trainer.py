@@ -1,18 +1,14 @@
 import torch
-import math
-
-from typing import List
 
 from sklearn.cluster import KMeans
 from sklearn.feature_selection import mutual_info_regression
 from sklearn.metrics import mean_squared_error
-from sklearn.model_selection import KFold, GridSearchCV
+from sklearn.model_selection import GridSearchCV
 from sksurv.linear_model import CoxnetSurvivalAnalysis
 from sksurv.metrics import cumulative_dynamic_auc, as_concordance_index_ipcw_scorer
 from torch.optim.lr_scheduler import StepLR
-from torch_geometric.nn import GAE
 
-from CustomKFoldScikit import CustomKFold
+from Logic.CustomKFoldScikit import CustomKFold
 from Logic.TrainingModel import TrainingModel
 import numpy as np
 import pandas as pd
@@ -20,7 +16,6 @@ import matplotlib.pyplot as plt
 
 import warnings
 from sklearn.exceptions import FitFailedWarning
-from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 import matplotlib.gridspec as gridspec
 
@@ -50,11 +45,10 @@ class Trainer:
         '''
         tr_model = self.model
         tr_model.model.to(self.device)
-        tr_model.loss_fn.clear()
         best_validation_loss = float('inf')
         best_model_state = None
         best_epoch = -1
-        scheduler = StepLR(tr_model.optim, step_size=tr_model.epochs // 4, gamma=0.5)
+        scheduler = StepLR(tr_model.optim, step_size=tr_model.epochs // 3, gamma=0.5)
 
         for t in range(tr_model.epochs + 1):
             tr_model.model.train()
@@ -257,9 +251,9 @@ class Trainer:
         print("Best index is", best_indices)
         data_points_best_coef = np.array(latent_space_train)[:, best_indices]
 
-        #plot_correlation_coefs(eval_model.data_loader.get_transcriptomic_data(eval_model.train_loader),
-        #                 data_points_best_coef,
-        #                 eval_model.name + "/correlation_best_features", best_indices, eval_model.test_genes)
+        plot_correlation_coefs(eval_model.data_loader.get_transcriptomic_data(eval_model.train_loader),
+                         data_points_best_coef,
+                         eval_model.name + "/correlation_best_features", best_indices, eval_model.test_genes)
 
         # Predict using the best model and the test latent space
         cph_risk_scores = best_model.predict(scaled_latent_space_test, alpha = best_alpha)

@@ -12,6 +12,13 @@ from Logic.Losses.LossType import LossType
 
 
 class TrainingModel():
+
+    '''
+    This class takes care of training the model and evaluating it. Therefore we need all information regarding a
+    specific fold: train, test, val loaders, clinical features, input dimension, the model we're using, the loss function,
+    batch size, whether its a GNN, etc.
+    '''
+
     def __init__(self, name, data_loader, iteration : IterationObject, cli_vars, model : torch.nn.Module,
                  loss_fn : LossHandler, optim: Type[torch.optim.Optimizer], epochs: int, BATCH_SIZE, L, isGNN, load_state = None):
         self.name = name
@@ -47,13 +54,15 @@ class TrainingModel():
             self.trained = True
 
     def compute_model_loss(self, X, predX, mu = None, log_var = None):
+        '''
+        We call LossHandler to compute the loss. mu and log_var are optional parameters in case we're using
+        a variational autoencoder.
+        '''
         mode = 'Val'
         if self.model.training:
             mode = 'Train'
         return self.loss_fn.compute_loss(mode, X, predX, self.model.parameters(), mu, log_var)
 
-    def fetch_model_loss(self):
-        loss_dict = self.loss_fn.loss_dict
 
     def transform_to_tabular(self, data):
         '''

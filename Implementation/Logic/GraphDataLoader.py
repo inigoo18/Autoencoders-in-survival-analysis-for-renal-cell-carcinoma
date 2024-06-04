@@ -2,7 +2,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 import torch
 import pickle
-
+import math
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 
@@ -12,11 +12,11 @@ from Logic.IterationObject import IterationObject
 
 class GraphDataLoader:
     """
-    Class that holds the data where the graphs are located.
+    Class that holds the data where the graphs are located. Very similar to TabularDataLoader, check comments there
+    for explainability.
     """
 
     def __init__(self, file_path, pred_vars, cli_vars, test_ratio, val_ratio, batch_size, folds, cohort):
-        # Load file and convert into float32 since model parameters initialized w/ Pytorch are in float32
         with open(file_path, 'rb') as f:
             graphs = pickle.load(f)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -25,6 +25,8 @@ class GraphDataLoader:
         self.pred_vars = pred_vars
 
         self.input_dim = len(graphs[0].nodes)
+
+        graphs = reorder_dataset(graphs)
 
         graphs = filter_cohort(graphs, cohort)
 
@@ -50,9 +52,6 @@ class GraphDataLoader:
             allDatasets += [it]
 
         self.allDatasets = allDatasets
-
-        self.adjacency_matrix = compute_adjacency_matrix(train_loader[0][0][0], self.device)  # we only need one graph as they are all the same.
-
 
     def custom_loader(self, graphs):
         # we use the method collect_all_graph_data to convert from networkx object to Data object for use in the network
@@ -195,20 +194,9 @@ def normalize_data(graphs, cliVars):
 
     return graphs
 
-def compute_adjacency_matrix(data, device):
-    print("Computing adjacency matrix of graph with properties: ", data)
-    coo_indices = data.edge_index
-    adj_matrix = torch.zeros(len(data.x), len(data.x)).to(device)
-    adj_matrix[coo_indices[0], coo_indices[1]] = 1
-    adj_matrix[coo_indices[1], coo_indices[0]] = 1
-    print("Matrix computation done")
-    return adj_matrix
-
 def shift_data(graphs, K):
     size = len(graphs)
-
     idx = (size // K) * (K - 1)
-
     lastrows = graphs[idx:]
     graphs_copy = graphs[:idx]
     return lastrows + graphs_copy
@@ -224,6 +212,14 @@ def filter_cohort(graphs, cohort):
     return res
 
 def validate_test_set(train_set, test_set):
+    '''
+        (Graph version)
+        Train data should have the largest PFS, both in censored and uncensored. During the KFold process, if this were not
+        the case, we need to swap patients around for this condition to hold.
+        :param train_df: train df
+        :param test_df: test df
+        :return: train and test correctly validated.
+        '''
     uncensoredTrainIdx, uncensoredTrainVal = (-1,-1)
     uncensoredTestIdx, uncensoredTestVal = (-1,-1)
     censoredTrainIdx, censoredTrainVal = (-1,-1)
@@ -258,4 +254,47 @@ def validate_test_set(train_set, test_set):
     return train_set, test_set
 
 
+def merge_lists(A, B, step):
+    new_list = []
+    len_A = len(A)
+    len_B = len(B)
 
+    i, j = 0, 0
+
+    while i < len_A or j < len_B:
+        # Append `step` elements from A
+        for _ in range(step):
+            if i < len_A:
+                new_list.append(A[i])
+                i += 1
+
+        # Append one element from B
+        if j < len_B:
+            new_list.append(B[j])
+            j += 1
+
+    return new_list
+
+
+def reorder_dataset(loaded_object):
+    A_graphs = []
+    B_graphs = []
+    for g in loaded_object:
+        if g.graph['PFS_P_CNSR'] == 0:
+            A_graphs += [g]
+        else:
+            B_graphs += [g]
+
+    step = math.floor(max(len(A_graphs), len(B_graphs)) / min(len(A_graphs), len(B_graphs)))
+    maxGraphs, minGraphs = None, None
+
+    if len(A_graphs) > len(B_graphs):
+        maxGraphs = A_graphs
+        minGraphs = B_graphs
+    else:
+        maxGraphs = B_graphs
+        minGraphs = A_graphs
+
+    reshaped_graphs = merge_lists(maxGraphs, minGraphs, step)
+
+    return reshaped_graphs
