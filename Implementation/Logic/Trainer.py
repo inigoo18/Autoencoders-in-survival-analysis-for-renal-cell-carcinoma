@@ -29,7 +29,8 @@ import copy
 
 class Trainer:
     """
-    Takes list of models and trains them one by one with the parameters that the model itself holds.
+    Takes a model and trains it using the parameters that TrainingModel holds. After the training, the model
+    is evaluated in this class as well.
     """
 
 
@@ -44,11 +45,13 @@ class Trainer:
         :return: Returns the best validation loss
         '''
         tr_model = self.model
+        # we move the model to the GPU, if available
         tr_model.model.to(self.device)
         best_validation_loss = float('inf')
         best_model_state = None
         best_epoch = -1
-        scheduler = StepLR(tr_model.optim, step_size=tr_model.epochs // 3, gamma=0.5)
+        # LR regularizer
+        scheduler = StepLR(tr_model.optim, step_size=tr_model.epochs // 4, gamma=0.5)
 
         for t in range(tr_model.epochs + 1):
             tr_model.model.train()
@@ -62,14 +65,11 @@ class Trainer:
                 x_pred_batch = None
                 mu = None
                 log_var = None
-                # Perform forward pass
+                # Perform forward pass, if variational then we use a different set-up (mu + log var)
                 if (tr_model.variational):
                     x_pred_batch, mu, log_var = tr_model.model.forward(x_batch)
                 else:
                     x_pred_batch = tr_model.model.forward(x_batch)
-
-                # We transform graph -> tabular data. If already tabular, nothing happens.
-                # x_batch = tr_model.transform_to_tabular(x_batch)
 
                 # Compute loss for the entire batch
                 loss = tr_model.compute_model_loss(x_batch, x_pred_batch, mu, log_var)
@@ -84,20 +84,18 @@ class Trainer:
 
             valid_loss = 0.0
             tr_model.model.eval()
+            # We repeat the process with the validation set
             with torch.no_grad():
                 for b in tr_model.val_loader:
                     x_batch = b[0]
                     x_pred_batch = None
                     mu = None
                     log_var = None
-                    # Perform forward pass
+                    # Perform forward pass, if variational then different set-up
                     if (tr_model.variational):
                         x_pred_batch, mu, log_var = tr_model.model.forward(x_batch)
                     else:
                         x_pred_batch = tr_model.model.forward(x_batch)
-
-                    # We transform graph -> tabular data. If already tabular, nothing happens.
-                    # x_batch = tr_model.transform_to_tabular(x_batch)
 
                     # Compute loss for the entire batch
                     loss = tr_model.compute_model_loss(x_batch, x_pred_batch, mu, log_var)
@@ -147,23 +145,38 @@ class Trainer:
         # Unroll batch lets us obtain the whole loader's data
         latent_space_train = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.train_loader, dim = 0)).cpu().detach().numpy()
         latent_space_test = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=0)).cpu().detach().numpy()
-
+        latent_space_val = eval_model.model.get_latent_space(eval_model.data_loader.unroll_batch(eval_model.val_loader, dim=0)).cpu().detach().numpy()
 
         # We add clinical variables
         latent_space_train = np.concatenate((latent_space_train, eval_model.data_loader.unroll_batch(eval_model.train_loader, dim=1).cpu().detach().numpy()), axis = 1)
         latent_space_test = np.concatenate((latent_space_test, eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=1).cpu().detach().numpy()), axis = 1)
+        latent_space_val = np.concatenate((latent_space_val, eval_model.data_loader.unroll_batch(eval_model.val_loader, dim=1).cpu().detach().numpy()), axis=1)
 
+        # We concatenate train + val since the statistical models do not use validation sets
+        latent_space_train = np.concatenate((latent_space_train, latent_space_val), axis=0)
+
+        # We do the same thing with the labels
         yTrain = eval_model.data_loader.unroll_batch(eval_model.train_loader, dim=2).cpu().detach().numpy()
         yTrain = np.array([(bool(event), float(time)) for event, time in yTrain], dtype=[('event', bool), ('time', float)])
         yTest = eval_model.data_loader.unroll_batch(eval_model.test_loader, dim=2).cpu().detach().numpy()
         yTest = np.array([(bool(event), float(time)) for event, time in yTest], dtype=[('event', bool), ('time', float)])
+        yVal = eval_model.data_loader.unroll_batch(eval_model.val_loader, dim=2).cpu().detach().numpy()
+        yVal = np.array([(bool(event), float(time)) for event, time in yVal], dtype=[('event', bool), ('time', float)])
 
+        # We concatenate labels in training set with validation set
+        yTrain = np.concatenate((yTrain, yVal), axis=0)
+
+        # We "draw" the latent spaces in excel sheets for debugging purposes
         draw_latent_space('LatentTrain', eval_model.name, latent_space_train)
         draw_latent_space('LatentTest', eval_model.name, latent_space_test)
 
         demographic_DF = pd.DataFrame()
         demographic_DF['PFS_P'] = yTest['time']
 
+        # Parameters we set to run COX.
+        # The number of TRIES is how many times we are going to perform the grid search. It can fail because the
+        # search is using parameters that are too big, in that case we retry and multiply the start and stop parameters
+        # by offset. We search using a step defined in the 'step' variable.
         TRIES = 3
         non_zero = 0
         offset = 0.9
@@ -182,11 +195,13 @@ class Trainer:
             warnings.simplefilter("ignore", FitFailedWarning)
             warnings.simplefilter("ignore", ArithmeticError)
 
+            # we scale for better performance.
             scaler = StandardScaler()
             scaler.fit(latent_space_train)
             scaled_latent_space_train = scaler.transform(latent_space_train)
             scaled_latent_space_test = scaler.transform(latent_space_test)
 
+            # We perform grid search to find the best alpha to test with
             cv = CustomKFold(n_splits=7, shuffle=True, random_state=40)
             gcv = GridSearchCV(
                 as_concordance_index_ipcw_scorer(
@@ -214,6 +229,7 @@ class Trainer:
 
             survival_functions_tmp = best_model.predict_survival_function(scaled_latent_space_test, best_alpha)
 
+            # if the coefs are all zero OR if for some reason the survival functions couldn't be estimated, try again
             if non_zero == 0 or np.isnan(survival_functions_tmp[0].y).any():
                 OK = False
                 TRIES -= 1
@@ -228,6 +244,7 @@ class Trainer:
         non_zero_coefs = best_coefs.query("coefficient != 0")
         coef_order = non_zero_coefs.abs().sort_values("coefficient").index
 
+        # we plot a figure showing how much weight each coef has
         plot_coefs(non_zero_coefs, coef_order, eval_model.name + "/relevant_features")
 
         latent_data = zip(latent_cols, latent_idxs)
@@ -240,10 +257,11 @@ class Trainer:
 
         data_points = latent_space_train[:, idxs_interest]
 
+        # if we have more than 2 coefs, we perform  tsne. However this isn't uesful in our work.
         if non_zero >= 2:
             plot_tsne_coefs(data_points, cols_interest, eval_model.name + "/tsne")
 
-
+        # We keep the best 5 coefficients for the correlation plots (check method for more info)
         latent_data = zip(latent_cols, latent_idxs)
         best_coefs = coef_order[-5:]
         best_indices = [idx for col, idx in latent_data if col in best_coefs]
@@ -251,7 +269,12 @@ class Trainer:
         print("Best index is", best_indices)
         data_points_best_coef = np.array(latent_space_train)[:, best_indices]
 
-        plot_correlation_coefs(eval_model.data_loader.get_transcriptomic_data(eval_model.train_loader),
+        # we concatenate training and validation together
+        original_data = np.concatenate((eval_model.data_loader.get_transcriptomic_data(eval_model.train_loader),
+                                        eval_model.data_loader.get_transcriptomic_data(eval_model.val_loader)), axis = 0)
+
+        # we plot correlation coefs using mutual information
+        plot_correlation_coefs(original_data,
                          data_points_best_coef,
                          eval_model.name + "/correlation_best_features", best_indices, eval_model.test_genes)
 
@@ -263,13 +286,15 @@ class Trainer:
         va_times = np.arange(min(times), max(times), 0.5)
         cph_auc, _ = cumulative_dynamic_auc(yTrain, yTest, cph_risk_scores, va_times)
 
+        # we plot the Area under ROC
         meanRes = plot_auc(va_times, cph_auc, eval_model.name + "/ROC")
 
         # Using survival functions, obtain median OR mean and assign it to each patient.
         survival_functions = best_model.predict_survival_function(scaled_latent_space_test, best_alpha)
         predicted_times = []
 
-        # TODO:: this must be placed somewhere else in the beginning.
+
+        # we can either use mean or median to predict PFS with.
         mode = "Mean"
         print("Using prediction mode: ", mode)
 
@@ -284,8 +309,9 @@ class Trainer:
 
         demographic_DF['predicted_PFS'] = predicted_times
 
+        # we get the overall plot that shows how the model performed with the predictions
         mseError = evaluate_demographic_data(eval_model, survival_functions, demographic_DF)
-
+        # we obtain the percentage of overestimation in our PFS predictions
         percentageOverEstimation = (demographic_DF['predicted_PFS'] > demographic_DF['PFS_P']).mean() * 100
 
         return meanRes, mseError, percentageOverEstimation
@@ -294,6 +320,11 @@ class Trainer:
 
 
 def plot_tsne_coefs(data, names, dir):
+    '''
+    In this method we first apply KMeans to the output of the autoencoder, with two clusters, then we apply dimensionality
+    reduction with t-SNE to reduce the dimensions down to 2. While this is not used in the report, it might add in
+    some visualization of the latent embeddings of the autoencoder.
+    '''
     print("Applying tSNE on data with following variables:")
     for i in names:
         print(i)
@@ -325,11 +356,14 @@ def plot_tsne_coefs(data, names, dir):
     plt.savefig("Results/"+dir)
     plt.clf()
     plt.close()
-    #plt.show()
 
 
 
 def plot_losses(epochs, data_tr, data_val, dir):
+    '''
+    We plot the loss evolution through the epochs of the training and validation data.
+    We add in other losses such as SPARSE or VARIATIONAL in order to see their effect on the total loss.
+    '''
     sns.set_style("whitegrid")
 
     OFFSET = 5
@@ -392,6 +426,10 @@ def plot_losses(epochs, data_tr, data_val, dir):
     plt.close()
 
 def plot_cindex(alphas, mean, std, best_alpha, dir):
+    '''
+    We plot the C-index throughout different alpha values, and show the best with a vertical line.
+    The horizontal line at 0.5 represents what a score befitting a random model would be like
+    '''
     fig, ax = plt.subplots(figsize=(9, 6))
     ax.plot(alphas, mean)
     ax.fill_between(alphas, mean - std, mean + std, alpha=0.15)
@@ -407,6 +445,9 @@ def plot_cindex(alphas, mean, std, best_alpha, dir):
     plt.close()
 
 def plot_coefs(non_zero_coefs, coef_order, dir):
+    '''
+    We plot the coefficients that we obtained from the COX PH model
+    '''
     _, ax = plt.subplots(figsize=(6, 8))
     non_zero_coefs.loc[coef_order].plot.barh(ax=ax, legend=False)
     ax.set_xlabel("coefficient")
@@ -417,6 +458,10 @@ def plot_coefs(non_zero_coefs, coef_order, dir):
     # plt.show()
 
 def plot_auc(va_times, cph_auc, dir):
+    '''
+    We plot the Area under ROC throughout the different trimesters. We also show the average of the different scores
+    obtained throughout the trimesters
+    '''
     meanRes = np.mean(cph_auc[~np.isnan(cph_auc)])
     plt.plot(va_times, cph_auc, marker="o")
     plt.axhline(meanRes, linestyle="--")
@@ -432,8 +477,10 @@ def plot_auc(va_times, cph_auc, dir):
 
 
 def plot_correlation_coefs(oriX, predX, dir, latentIdxs ,geneNames):
-    # predX :: 730 x 5
-    # latentIdxs :: 5
+    '''
+    We plot the correlation using Mutual Information between the original (transcriptomic) data and the latent
+    representations. This tells us which genes are most represented by which latent features.
+    '''
 
     mutual_informations = []
     for idx in range(len(latentIdxs)):
@@ -450,8 +497,6 @@ def plot_correlation_coefs(oriX, predX, dir, latentIdxs ,geneNames):
         genes = [geneNames[i] for i in top_indices]
         resList += [(genes, top_values)]
 
-    print("RESULT :: ")
-    print(resList)
 
     fig = plt.figure(figsize=(12, 8))
     outer = gridspec.GridSpec(1, 2, wspace=0.5, hspace=0.5)
@@ -486,14 +531,12 @@ def plot_correlation_coefs(oriX, predX, dir, latentIdxs ,geneNames):
 
 
 def evaluate_demographic_data(eval_model, survival_functions, demographic_df):
+    '''
+    This method shows (i) the survival functions (ii) boxplots with the distribution for the original and predicted
+    PFS values (iii) the residuals in the predictions (iv) the actual vs the predicted PFS
+    '''
+
     # Calculate MSE
-
-    print("DEMOGRAPHIC DF")
-    print(demographic_df)
-
-    print("Index 0")
-    print(demographic_df.iloc[0])
-
     mse = mean_squared_error(demographic_df['PFS_P'], demographic_df['predicted_PFS'])
 
     # Set Seaborn style
@@ -551,6 +594,9 @@ def evaluate_demographic_data(eval_model, survival_functions, demographic_df):
 
 
 def draw_latent_space(filename, folder, latent_space):
+    '''
+    We draw the latent space in an excel sheet for debugging purposes.
+    '''
     row = 1
     col = 1
 

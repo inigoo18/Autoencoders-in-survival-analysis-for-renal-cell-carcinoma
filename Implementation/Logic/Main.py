@@ -34,38 +34,55 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
         :param COHORTS: the different cohorts to filter by in the data loader
         :return: cohortResults, which is a dictionary where for each cohort the results are shown, and the combinations used.
     '''
+
+    # We fetch the preprocessed data
     current_directory = os.getcwd()
     somepath = os.path.abspath(
         os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_tabular_R3.csv'))
 
+    # The different penalty combinations we want to evaluate for
     combinations = [[], [LossType.DENOISING], [LossType.SPARSE_KL], [LossType.VARIATIONAL], [LossType.DENOISING, LossType.SPARSE_KL]]
     cohortResults = {}
 
-
+    # For each cohort (treatment arm)
     for cohort in COHORTS:
+        # We load the data through the TabularDataLoader
         d = TabularDataLoader(somepath, ['PFS_P', 'PFS_P_CNSR'], clinicalVars, (1/FOLDS), 0.2, BATCH_SIZE, FOLDS, cohort)
+        # In this array we will put the results that we obtain for each fold
         foldObjects = []
+        # For each combination (penalty)...
         for comb in combinations:
             print("Next combination: " + str(comb))
+            # We store the datasets we procured in the TabularDataLoader into the FoldObject. This way we don't need
+            # to reprocess the data for the next fold, but rather just fetch it from here
             foldObject = FoldObject(comb, FOLDS, d.allDatasets)
+            # For each of the folds we have...
             for fold in range(FOLDS):
+                # Title to name our result folder under
                 title = "TAB{{L_"+str(L) + "_F_" + str(fold) + "_C_" + cohort + "_" + '+'.join(str(loss.name) for loss in comb)
+                # LossHandler is a custom class that computes the loss of the autoencoder based on what penalties we have selected
                 loss_fn = LossHandler(comb, loss_args, False)
+                # Our autoencoder (and the variational counterpart in case we're using the Variational penalty)
                 aeModel = MWE_AE(d.input_dim, L)
                 vaeModel = VariationalExample(d.input_dim, L)
                 if LossType.VARIATIONAL in comb:
                     aeModel = vaeModel
+                # Optimizers, and the TrainingModel, which contains all information for the training and evaluation of the model
                 optim = torch.optim.Adam(aeModel.parameters(), lr = 0.0005)
                 instanceModel = TrainingModel(title, d, foldObject.iterations[fold], clinicalVars,
                                             aeModel, loss_fn, optim, EPOCHS, BATCH_SIZE, L, False)#, 'best_model_loss_1478.pth')
 
                 trainer = Trainer(instanceModel, WITH_HISTOLOGY)
+                # we train the autoencoder
                 bestValLoss = trainer.train()
+                # we evaluate the model (as well as training the statistical model)
                 meanRes, mseError, percentageOverEstimation = trainer.evaluate()
+                # hereafter we procure our results
                 foldObject.Reconstruction += [bestValLoss]
                 foldObject.MSE += [mseError]
                 foldObject.ROC += [meanRes]
                 foldObject.OverEstimation += [percentageOverEstimation]
+                # in case we used too much GPU (and to avoid overflowing errors), we empty the cache
                 with torch.no_grad():
                     torch.cuda.empty_cache()
             foldObjects += [foldObject]
@@ -77,7 +94,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
 
 def graph_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHORTS, WITH_HISTOLOGY):
     '''
-        Pipeline for the graph autoencoder. (look at tabular implementation for more comments)
+        Pipeline for the graph autoencoder. (please look at tabular implementation for more comments)
         :param BATCH_SIZE: size of the batch for the data loader
         :param L: latent dimensionality
         :param loss_args: dictionary specifying the value of each loss
@@ -290,7 +307,7 @@ def convert_to_excel(names, ys, typename, L, FOLDS, COHORTS, pvalues_cohort, pva
 if __name__ == "__main__":
     # Option specifies either 'Tabular' or 'Graph'.
     # WITH_HISTOLOGY can be set to true if we want to consider all of the histology features.
-    option = "Graph"
+    option = "Tabular"
     WITH_HISTOLOGY = False
 
     # We set the randomness to 42 for reproducibility
@@ -304,8 +321,8 @@ if __name__ == "__main__":
                     'CD8_POSITIVE_CELLS_TUMOR_CENTER', 'CD8_POSITIVE_CELLS_TOTAL_AREA']
     # Number of epochs, folds, and which arms (here named COHORTS) we want to measure. Cohorts can be set to ['ALL'] in case
     # we do not want to differentiate between arms
-    EPOCHS = 10
-    FOLDS = 4
+    EPOCHS = 100
+    FOLDS = 10
     COHORTS = ['Avelumab+Axitinib','Sunitinib']
 
     if WITH_HISTOLOGY is False:
