@@ -81,6 +81,7 @@ class LossHandler():
         :param params: argument list defined in LossHandler class
         :return: each layer adds to the total sparsity loss
         '''
+        # tanh is used for normalization purposes
         TOTAL = 0
         for p in params:
             p = p.to(self.device)
