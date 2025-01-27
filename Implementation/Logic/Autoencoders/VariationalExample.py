@@ -23,6 +23,8 @@ class VariationalExample(nn.Module):
             custom_block_final(1500, input_dim)
         )
 
+        self.DISTR = "Exponential"
+
 
     def encode(self, x):
         x = self.encoder(x)
@@ -35,8 +37,17 @@ class VariationalExample(nn.Module):
         return self.reparameterization(mean, torch.exp(0.5 * log_var)) # log var -> var
 
     def reparameterization(self, mean, var):
-        epsilon = torch.randn_like(var).to(self.device)
-        z = mean + var * epsilon
+        if self.DISTR == "Gaussian":
+            epsilon = torch.randn_like(var).to(self.device)
+            z = mean + var * epsilon
+        elif self.DISTR == "Exponential":
+            # The PDF of an exponential dist. is:
+            # f(z; lambda) = lambda * e^(-lambda * z), z >= 0
+            # we use the inverse CDF method:
+            # z = - ln(u) / lambda where u follows Uniform(0,1)
+            rate_param = 1 / (mean + 1e-9)  # Rate = 1 / Mean
+            uniform_samples = torch.rand_like(rate_param).to(self.device)
+            z = -torch.log(uniform_samples) / rate_param
         z = (z - z.min()) / (z.max() - z.min())
         return z
 

@@ -41,8 +41,9 @@ class TrainingModel():
         self.GNN = isGNN
         self.trained = False
         self.variational = False
-        if LossType.VARIATIONAL in loss_fn.loss_types:
-            self.variational = True
+        if loss_fn is not None:
+            if LossType.VARIATIONAL in loss_fn.loss_types:
+                self.variational = True
         if not os.path.exists("Results/"+name):
             os.makedirs("Results/"+name)
         if not os.path.exists("Checkpoints/"):

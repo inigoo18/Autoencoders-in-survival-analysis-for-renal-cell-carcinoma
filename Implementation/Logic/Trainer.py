@@ -310,7 +310,7 @@ class Trainer:
         demographic_DF['predicted_PFS'] = predicted_times
 
         # we get the overall plot that shows how the model performed with the predictions
-        mseError = evaluate_demographic_data(eval_model, survival_functions, demographic_DF)
+        mseError = evaluate_demographic_data(eval_model.name, survival_functions, demographic_DF)
         # we obtain the percentage of overestimation in our PFS predictions
         percentageOverEstimation = (demographic_DF['predicted_PFS'] > demographic_DF['PFS_P']).mean() * 100
 
@@ -530,7 +530,7 @@ def plot_correlation_coefs(oriX, predX, dir, latentIdxs ,geneNames):
 
 
 
-def evaluate_demographic_data(eval_model, survival_functions, demographic_df):
+def evaluate_demographic_data(saveName, survival_functions, demographic_df):
     '''
     This method shows (i) the survival functions (ii) boxplots with the distribution for the original and predicted
     PFS values (iii) the residuals in the predictions (iv) the actual vs the predicted PFS
@@ -586,7 +586,7 @@ def evaluate_demographic_data(eval_model, survival_functions, demographic_df):
     # Adjust layout to prevent overlap
     plt.tight_layout()
 
-    plt.savefig("Results/"+eval_model.name + "/prediction")
+    plt.savefig("Results/"+saveName + "/prediction")
     plt.clf()
     plt.close()
 

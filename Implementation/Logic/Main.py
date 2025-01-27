@@ -41,7 +41,7 @@ def tabular_network(BATCH_SIZE, L, loss_args, clinicalVars, EPOCHS, FOLDS, COHOR
         os.path.join(current_directory, '..', '..', 'Data', 'RNA_dataset_tabular_R3.csv'))
 
     # The different penalty combinations we want to evaluate for
-    combinations = [[], [LossType.DENOISING], [LossType.SPARSE_KL], [LossType.VARIATIONAL], [LossType.DENOISING, LossType.SPARSE_KL]]
+    combinations = [[LossType.VARIATIONAL]]
     cohortResults = {}
 
     # For each cohort (treatment arm)
